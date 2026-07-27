@@ -4,7 +4,13 @@ export type Block =
   | { type: 'checklist'; text: string; checked: boolean }
   | { type: 'bullet'; text: string }
   | { type: 'numbered'; text: string; index: number }
-  | { type: 'code'; lines: string[] }
+  /**
+   * `lang` é o que vem depois das crases. Guardar isso é o que permite um bloco
+   * de código carregar outro tipo de conteúdo — o gráfico é gravado como
+   * ```grafico com JSON dentro, e assim a nota continua sendo markdown válido
+   * em qualquer outro editor.
+   */
+  | { type: 'code'; lines: string[]; lang: string }
   | { type: 'table'; rows: string[][] }
   | { type: 'hr' }
   | { type: 'image'; alt: string; url: string }
@@ -20,6 +26,7 @@ export function parseMarkdown(content: string): Block[] {
     const line = lines[i];
 
     if (line.trim().startsWith('```')) {
+      const lang = line.trim().slice(3).trim();
       const codeLines: string[] = [];
       i += 1;
       while (i < lines.length && !lines[i].trim().startsWith('```')) {
@@ -27,7 +34,7 @@ export function parseMarkdown(content: string): Block[] {
         i += 1;
       }
       i += 1;
-      blocks.push({ type: 'code', lines: codeLines });
+      blocks.push({ type: 'code', lines: codeLines, lang });
       continue;
     }
 

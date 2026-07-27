@@ -79,8 +79,14 @@ jobs:
         run: node scripts/env-check.js
 
       - name: Testes que rodam sem aparelho
-        # QR (conferido contra a norma), criptografia ponta a ponta,
-        # calculadora (que avalia texto do modelo) e o laço de ferramentas.
+        # QR (conferido contra a norma), criptografia ponta a ponta, calculadora
+        # (que avalia texto do modelo), laço de ferramentas, registro de quedas,
+        # conversão markdown↔blocos e geometria dos gráficos.
+        #
+        # Os dois últimos são os mais importantes para o conteúdo: a conversão
+        # instável faria a nota mudar sozinha a cada abertura, e um NaN na
+        # geometria faz o gráfico sumir sem erro nenhum.
+        #
         # Falhar aqui para o build antes de gastar 15 minutos compilando.
         run: |
           node scripts/qr-test.js
@@ -88,6 +94,8 @@ jobs:
           node scripts/calc-test.js
           node scripts/agent-test.js
           node scripts/crash-test.js
+          node scripts/blocks-test.js
+          node scripts/chart-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos

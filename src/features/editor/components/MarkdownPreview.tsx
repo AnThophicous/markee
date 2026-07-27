@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Image, Linking, Pressable, View } from 'react-native';
+import { Image, Linking, Pressable, View, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 import { AppText } from '@/components/AppText';
@@ -7,7 +7,9 @@ import { Divider } from '@/components/Divider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { cn } from '@/utils/cn';
 import { displayHost, isSafeLink, isSelfHostedImage } from '@/utils/url-safety';
+import { lerGrafico } from '../model/blocks';
 import { parseMarkdown, tokenizeInline, type InlineToken } from '../utils/markdown-parser';
+import { Grafico } from './Grafico';
 
 function InlineText({ tokens, className }: { tokens: InlineToken[]; className?: string }) {
   return (
@@ -54,6 +56,7 @@ function InlineText({ tokens, className }: { tokens: InlineToken[]; className?: 
 
 export function MarkdownPreview({ content }: { content: string }) {
   const { tokens } = useTheme();
+  const { width } = useWindowDimensions();
   const blocks = useMemo(() => parseMarkdown(content), [content]);
 
   return (
@@ -104,16 +107,30 @@ export function MarkdownPreview({ content }: { content: string }) {
                 </View>
               </View>
             );
-          case 'code':
+          case 'code': {
+            // Um bloco ```grafico carrega JSON, não código. Sem este desvio a
+            // nota mostraria as chaves e os números crus na leitura.
+            if (block.lang === 'grafico') {
+              const dados = lerGrafico(block.lines.join('\n'));
+              if (dados) {
+                return (
+                  <View key={index} className="my-2">
+                    <Grafico dados={dados} largura={width - 40} />
+                  </View>
+                );
+              }
+            }
+
             return (
               <View key={index} className="my-1 rounded-lg bg-subtle-light dark:bg-subtle-dark p-3">
                 {block.lines.map((line, lineIndex) => (
-                  <AppText key={lineIndex} style={{ fontFamily: 'Menlo', fontSize: 14, lineHeight: 20 }}>
+                  <AppText key={lineIndex} style={{ fontFamily: 'monospace', fontSize: 14, lineHeight: 20 }}>
                     {line || ' '}
                   </AppText>
                 ))}
               </View>
             );
+          }
           case 'table':
             return (
               <View

@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppText } from '@/components/AppText';
 import { IconButton } from '@/components/IconButton';
 import { AiSheet } from '@/features/ai/components/AiSheet';
-import { MarkdownEditor } from '@/features/editor/components/MarkdownEditor';
+import { BlockEditor } from '@/features/editor/components/BlockEditor';
 import { MarkdownPreview } from '@/features/editor/components/MarkdownPreview';
 import { FolderPickerSheet } from '@/features/folders/components/FolderPickerSheet';
 import { NoteActionsSheet } from '@/features/notes/components/NoteActionsSheet';
@@ -143,8 +143,12 @@ export default function NoteEditorScreen() {
           </Pressable>
         </ScrollView>
       ) : (
-        <MarkdownEditor
-          value={content}
+        <BlockEditor
+          // A chave amarra o editor à nota. Sem ela, ir de uma nota para outra
+          // reaproveitaria a mesma instância, e o editor — que lê o markdown
+          // só na montagem — continuaria mostrando o conteúdo da nota anterior.
+          key={id}
+          markdownInicial={content}
           onChange={setContent}
           onRequestDone={exitEditMode}
           autoFocus={startedBlank.current}
