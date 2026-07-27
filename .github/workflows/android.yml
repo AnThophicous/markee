@@ -1,0 +1,105 @@
+name: APK Android
+
+# Manual, ou a cada push na main. `workflow_dispatch` permite recompilar sem
+# precisar inventar um commit.
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: Tipo de build
+        type: choice
+        default: release
+        options: [release, debug]
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'supabase/**']
+
+concurrency:
+  # Push em cima de push cancela o anterior — não adianta compilar código velho.
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # O Gradle do Android precisa de JDK 17. O runner traz vários, então a
+      # versão é fixada para o build não mudar de comportamento sozinho.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Instalar dependências
+        # O .npmrc do projeto já traz legacy-peer-deps, necessário por causa do
+        # conflito de peer entre expo-router e react-dom.
+        run: npm ci
+
+      - name: Verificar tipos
+        run: npx tsc --noEmit
+
+      - name: Testes que rodam sem aparelho
+        # Codificador de QR (conferido contra a norma) e criptografia ponta a
+        # ponta. Falhar aqui para o build antes de gastar 15 minutos compilando.
+        run: |
+          node scripts/qr-test.js
+          node scripts/e2e-test.js
+
+      - name: Gerar o projeto Android
+        # A pasta android/ não fica no repositório: é derivada do app.json e dos
+        # plugins. Gerar a cada build evita que ela envelheça em silêncio.
+        run: npx expo prebuild --platform android --clean --no-install
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Usar a nossa chave de assinatura
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        # O template do Expo assina o release com `signingConfigs.debug`, e o
+        # debug.keystore é gerado do zero a cada prebuild — por isso a assinatura
+        # mudaria todo build e o Android recusaria a atualização com "app não
+        # instalado".
+        #
+        # Em vez de remendar o build.gradle com regex (frágil, quebra quando o
+        # template do Expo muda), o arquivo é simplesmente substituído pelo
+        # nosso, com o mesmo alias e senha que o template espera. O Gradle nem
+        # percebe a diferença.
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::Sem ANDROID_KEYSTORE_BASE64 — assinatura descartável."
+            echo "::warning::Para instalar por cima depois, será preciso desinstalar antes."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/debug.keystore
+          keytool -list -keystore android/app/debug.keystore -storepass android | grep -i sha256 || true
+
+      - name: Compilar
+        working-directory: android
+        run: ./gradlew ${{ github.event.inputs.variant == 'debug' && 'assembleDebug' || 'assembleRelease' }} --no-daemon
+
+      - name: Nomear com a data e o commit
+        id: apk
+        run: |
+          SRC=$(find android/app/build/outputs/apk -name '*.apk' | head -1)
+          NAME="markee-$(date +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          cp "$SRC" "$NAME.apk"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          ls -lh "$NAME.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.name }}.apk
+          retention-days: 30

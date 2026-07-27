@@ -1,0 +1,286 @@
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { Feather } from '@expo/vector-icons';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+import { ThemePickerSheet } from '@/components/ThemePickerSheet';
+import { useSession } from '@/features/auth/hooks/useSession';
+import { signOut } from '@/features/auth/services/auth.service';
+import { useIsPro, useMyUsage } from '@/features/billing/hooks/useMyUsage';
+import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
+import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
+import { useProfile, useUpdateProfile, useUploadProfileImage } from '@/features/profile/hooks/useProfile';
+import { useBottomInset } from '@/hooks/useBottomInset';
+import { useTheme } from '@/theme/ThemeProvider';
+import { describeProError, type VisualTheme } from '@/theme/visual';
+import { prettyCode } from '@/utils/markee-link';
+
+const BIO_LIMIT = 300;
+
+export default function ProfileScreen() {
+  const router = useRouter();
+  const { tokens } = useTheme();
+  const bottom = useBottomInset(32);
+  const { user, isLoading: sessionLoading } = useSession();
+
+  const { data: profile, isLoading } = useProfile(user?.id);
+  const updateProfile = useUpdateProfile(user?.id);
+  const uploadImage = useUploadProfileImage(user?.id);
+  const { isPro } = useIsPro();
+  const { data: usage } = useMyUsage();
+
+  const [displayName, setDisplayName] = useState('');
+  const [pronouns, setPronouns] = useState('');
+  const [headline, setHeadline] = useState('');
+  const [bio, setBio] = useState('');
+  const [themeVisible, setThemeVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setDisplayName(profile.displayName);
+      setPronouns(profile.pronouns ?? '');
+      setHeadline(profile.headline ?? '');
+      setBio(profile.bio ?? '');
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (!sessionLoading && !user) router.replace('/login');
+  }, [sessionLoading, user, router]);
+
+  const pick = async (kind: 'avatar' | 'banner') => {
+    setError(null);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError('Precisamos de acesso às suas fotos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: kind === 'avatar' ? [1, 1] : [3, 1],
+      quality: 0.85,
+    });
+    if (result.canceled) return;
+
+    uploadImage.mutate(
+      { kind, uri: result.assets[0].uri },
+      {
+        onError: (e) => {
+          const message = e instanceof Error ? e.message : 'Falha ao enviar a imagem.';
+          setError(describeProError(message) ?? message);
+        },
+      }
+    );
+  };
+
+  const save = () => {
+    setError(null);
+    setSaved(false);
+    updateProfile.mutate(
+      { displayName: displayName.trim() || 'Estudante', pronouns, headline, bio },
+      {
+        onSuccess: () => setSaved(true),
+        onError: (e) => {
+          const message = e instanceof Error ? e.message : 'Falha ao salvar.';
+          setError(describeProError(message) ?? message);
+        },
+      }
+    );
+  };
+
+  const saveTheme = async (theme: VisualTheme) => {
+    await updateProfile.mutateAsync({ theme });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace('/');
+  };
+
+  if (sessionLoading || isLoading || !user || !profile) {
+    return (
+      <Screen className="items-center justify-center">
+        <ActivityIndicator color={tokens.accent} />
+      </Screen>
+    );
+  }
+
+  // Prévia ao vivo: o cabeçalho reflete o que está sendo digitado.
+  const preview = { ...profile, displayName: displayName || 'Estudante', pronouns, headline, bio };
+
+  return (
+    <View className="flex-1 bg-canvas-light dark:bg-canvas-dark">
+      <ScreenHeader
+        title="Seu perfil"
+        showMenu={false}
+        onBackPress={() => router.back()}
+        rightIcon="droplet"
+        onRightPress={() => setThemeVisible(true)}
+      />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: bottom }} keyboardShouldPersistTaps="handled">
+        {uploadImage.isPending ? (
+          <View className="absolute right-4 top-2 z-10">
+            <ActivityIndicator color={tokens.accent} />
+          </View>
+        ) : null}
+
+        <ProfileHeader
+          profile={preview}
+          isPro={isPro}
+          onPressAvatar={() => pick('avatar')}
+          onPressBanner={() => pick('banner')}
+        />
+
+        <View className="gap-3 px-5">
+          <Field label="NOME DE EXIBIÇÃO">
+            <TextInput
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Como você aparece nos grupos"
+              placeholderTextColor={tokens.muted}
+              maxLength={40}
+              className="rounded-xl bg-subtle-light px-4 py-3.5 text-[16px] text-ink-light dark:bg-subtle-dark dark:text-ink-dark"
+            />
+          </Field>
+
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <Field label="PRONOMES">
+                <TextInput
+                  value={pronouns}
+                  onChangeText={setPronouns}
+                  placeholder="ele/dele"
+                  placeholderTextColor={tokens.muted}
+                  maxLength={24}
+                  className="rounded-xl bg-subtle-light px-4 py-3.5 text-[16px] text-ink-light dark:bg-subtle-dark dark:text-ink-dark"
+                />
+              </Field>
+            </View>
+            <View className="flex-[1.4]">
+              <Field label="STATUS">
+                <TextInput
+                  value={headline}
+                  onChangeText={setHeadline}
+                  placeholder="Estudando para o ENEM"
+                  placeholderTextColor={tokens.muted}
+                  maxLength={60}
+                  className="rounded-xl bg-subtle-light px-4 py-3.5 text-[16px] text-ink-light dark:bg-subtle-dark dark:text-ink-dark"
+                />
+              </Field>
+            </View>
+          </View>
+
+          <Field label={`BIO · ${bio.length}/${BIO_LIMIT}`}>
+            <TextInput
+              value={bio}
+              onChangeText={(text) => setBio(text.slice(0, BIO_LIMIT))}
+              placeholder="Conte um pouco sobre você e o que está estudando."
+              placeholderTextColor={tokens.muted}
+              multiline
+              className="min-h-[92px] rounded-xl bg-subtle-light px-4 py-3.5 text-[16px] text-ink-light dark:bg-subtle-dark dark:text-ink-dark"
+              style={{ textAlignVertical: 'top' }}
+            />
+          </Field>
+
+          <Pressable
+            onPress={() => setThemeVisible(true)}
+            className="flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+          >
+            <Feather name="droplet" size={18} color={tokens.accent} />
+            <View className="flex-1">
+              <AppText variant="body">Aparência do perfil</AppText>
+              <AppText variant="small">
+                {profile.theme.kind === 'gradient' ? 'Gradiente' : 'Cor sólida'}
+                {profile.theme.effect !== 'none' ? ' · com efeito' : ''}
+              </AppText>
+            </View>
+            <Feather name="chevron-right" size={18} color={tokens.muted} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/friends/add')}
+            className="flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+          >
+            <Feather name="grid" size={18} color={tokens.accent} />
+            <View className="flex-1">
+              <AppText variant="body">Meu QR code</AppText>
+              <AppText variant="small">
+                {profile.friendCode ? prettyCode(profile.friendCode) : 'Gerando…'}
+              </AppText>
+            </View>
+            <Feather name="chevron-right" size={18} color={tokens.muted} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/upgrade')}
+            className="flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+          >
+            <Feather name="zap" size={18} color={tokens.accent} />
+            <View className="flex-1">
+              <AppText variant="body">{isPro ? 'Markee Pro' : 'Assinar o Pro'}</AppText>
+              <AppText variant="small">
+                {usage ? `IA: ${usage.aiUsed}/${usage.aiLimit} · Transcrição: ${usage.minUsed}/${usage.minLimit} min` : '—'}
+              </AppText>
+            </View>
+            <Feather name="chevron-right" size={18} color={tokens.muted} />
+          </Pressable>
+
+          {error ? (
+            <AppText variant="caption" className="text-danger">
+              {error}
+            </AppText>
+          ) : saved ? (
+            <AppText variant="caption" className="text-accent">
+              Perfil salvo.
+            </AppText>
+          ) : null}
+
+          <Button
+            label={updateProfile.isPending ? 'Salvando…' : 'Salvar'}
+            onPress={save}
+            disabled={updateProfile.isPending}
+            className="mt-1"
+          />
+
+          <AppText variant="small" className="mt-2 text-center">
+            {user.email}
+          </AppText>
+          <Button label="Sair da conta" variant="danger" onPress={handleSignOut} />
+        </View>
+      </ScrollView>
+
+      <ThemePickerSheet
+        visible={themeVisible}
+        title="Aparência do perfil"
+        onClose={() => setThemeVisible(false)}
+        current={profile.theme}
+        isPro={isPro}
+        onSave={saveTheme}
+        onUpgrade={() => {
+          setThemeVisible(false);
+          router.push('/upgrade');
+        }}
+      />
+    </View>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View>
+      <AppText variant="small" className="mb-1.5 px-1">
+        {label}
+      </AppText>
+      {children}
+    </View>
+  );
+}

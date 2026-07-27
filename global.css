@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Valores padrão da cor de destaque. O ThemeProvider sobrescreve estas
+ * variáveis em tempo de execução com `vars()` quando a pessoa escolhe outra cor
+ * nas Configurações; isto aqui é só o ponto de partida (o rosa da marca).
+ */
+:root {
+  --accent: #F62283;
+  --accent-soft: #FFF0F6;
+  --accent-softdark: #2A0A18;
+}
