@@ -10,6 +10,7 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { Divider } from '@/components/Divider';
 import { Sheet } from '@/components/Sheet';
 import { ApiKeyField } from '@/features/ai/components/ApiKeyField';
+import { Toggle } from '@/components/Toggle';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import {
   DEFAULT_ACCENT,
@@ -35,6 +36,9 @@ export default function SettingsScreen() {
   const accentColor = useSettingsStore((state) => state.accentColor);
   const setAccentColor = useSettingsStore((state) => state.setAccentColor);
   const [accentVisible, setAccentVisible] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const allowAiNotes = useSettingsStore((state) => state.allowAiNotes);
+  const setAllowAiNotes = useSettingsStore((state) => state.setAllowAiNotes);
 
   return (
     <View className="flex-1 bg-canvas-light dark:bg-canvas-dark">
@@ -84,7 +88,45 @@ export default function SettingsScreen() {
         <AppText variant="caption" className="mb-2 mt-6 px-1">
           Assistente
         </AppText>
-        <ApiKeyField />
+
+        <View className="rounded-2xl bg-surface-light px-4 py-3.5 dark:bg-surface-dark">
+          <View className="flex-row items-center gap-3">
+            <Feather name="file-text" size={18} color={tokens.accent} />
+            <View className="flex-1 pr-2">
+              <AppText variant="body">Deixar a IA ler minhas notas</AppText>
+              <AppText variant="small">
+                Só o trecho relacionado ao que você perguntar, e só quando você perguntar.
+              </AppText>
+            </View>
+            <Toggle value={allowAiNotes} onChange={setAllowAiNotes} />
+          </View>
+
+          {allowAiNotes ? (
+            <AppText variant="small" className="mt-2.5">
+              Suas notas passam a sair do aparelho quando a IA precisar delas. Desligue a qualquer momento.
+            </AppText>
+          ) : null}
+        </View>
+
+        {/* A chave própria fica recolhida: quase ninguém precisa dela, e ver um
+            campo de chave de API na primeira tela assusta sem motivo. */}
+        <Pressable
+          onPress={() => setAdvancedOpen((current) => !current)}
+          className="mt-4 flex-row items-center gap-2 px-1 py-2"
+        >
+          <Feather name={advancedOpen ? 'chevron-down' : 'chevron-right'} size={14} color={tokens.muted} />
+          <AppText variant="small">AVANÇADO</AppText>
+        </Pressable>
+
+        {advancedOpen ? (
+          <View>
+            <AppText variant="small" className="mb-2 px-1">
+              A IA já vem funcionando pela nossa conta. Se preferir usar a sua chave da OpenRouter, ela
+              substitui a nossa e passa a valer sem limite — os pedidos saem por sua conta.
+            </AppText>
+            <ApiKeyField />
+          </View>
+        ) : null}
 
         <AppText variant="caption" className="mb-2 mt-6 px-1">
           Sobre

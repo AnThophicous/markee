@@ -12,18 +12,19 @@ import { useBottomInset } from '@/hooks/useBottomInset';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const PRO_FEATURES: { icon: keyof typeof Feather.glyphMap; title: string; detail: string }[] = [
-  { icon: 'cpu', title: '500 usos de IA por mês', detail: 'Resumir, gerar flashcards e explicar trechos' },
-  { icon: 'mic', title: '20 horas de transcrição', detail: 'Grave a aula e receba o texto' },
-  { icon: 'droplet', title: 'Gradientes e efeitos', detail: 'Personalize a aparência dos seus grupos' },
-  { icon: 'image', title: 'Ícone animado e banner', detail: 'GIF no ícone do grupo' },
-  { icon: 'upload', title: 'Uploads maiores', detail: 'Mais espaço para materiais de estudo' },
+  { icon: 'cpu', title: '500 pedidos de IA por mês', detail: 'Sem precisar de chave própria — a conta é nossa' },
+  { icon: 'droplet', title: 'Gradiente que você monta', detail: 'Escolhe cada cor, no grupo e no perfil' },
+  { icon: 'zap', title: 'Efeitos de luz', detail: 'Varredura, pulso, deriva e giro' },
+  { icon: 'image', title: 'Banner e ícone animado', detail: 'GIF no ícone do grupo' },
+  { icon: 'layout', title: 'Cartão do grupo', detail: 'Como ele aparece para os outros' },
 ];
 
 const FREE_FEATURES = [
-  'Notas, pastas, tags e busca — ilimitado',
-  'Grupos, salas e chat — ilimitado',
-  'Feed, comentários e compartilhamento',
-  '20 usos de IA e 60 min de transcrição por mês',
+  'Notas, pastas, tags, busca e lembretes — sem limite',
+  'Grupos, salas, feed, enquetes e agenda — sem limite',
+  'Amigos por QR e conversa cifrada — sem limite',
+  'IA ilimitada com a sua própria chave da OpenRouter',
+  '20 pedidos de IA por mês na nossa conta',
 ];
 
 export default function UpgradeScreen() {
@@ -79,7 +80,8 @@ export default function UpgradeScreen() {
             </View>
           ))}
           <AppText variant="caption" className="mt-3">
-            Nada essencial fica atrás do Pro. Só cobramos o que custa processamento.
+            Nada essencial fica atrás do Pro. E se você usar a sua própria chave da OpenRouter, a IA é ilimitada
+            e de graça — não faria sentido cobrar para limitar o que você já paga.
           </AppText>
         </View>
 
@@ -89,11 +91,12 @@ export default function UpgradeScreen() {
               SEU USO ESTE MÊS
             </AppText>
             <AppText variant="body">
-              IA: {usage.aiUsed} de {usage.aiLimit}
+              IA pela nossa conta: {usage.aiUsed} de {usage.aiLimit}
             </AppText>
-            <AppText variant="body">
-              Transcrição: {usage.minUsed} de {usage.minLimit} min
+            <AppText variant="small" className="mt-1">
+              Pedidos feitos com a sua própria chave não entram nesta conta.
             </AppText>
+
           </View>
         ) : null}
 

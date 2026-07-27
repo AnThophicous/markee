@@ -1,3 +1,4 @@
+import { supabase } from '@/services/supabase';
 import { storage } from '@/storage/mmkv';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -26,9 +27,14 @@ export function clearApiKey(): void {
 
 export class MissingApiKeyError extends Error {
   constructor() {
-    super('Configure sua chave da OpenRouter em Configurações para usar a IA.');
+    super('A IA ainda não está ligada no servidor. Configure sua chave da OpenRouter em Configurações.');
     this.name = 'MissingApiKeyError';
   }
+}
+
+/** Com chave própria não há limite nosso: os tokens são pagos por quem a configurou. */
+export function usesOwnKey(): boolean {
+  return Boolean(getApiKey());
 }
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
@@ -39,7 +45,21 @@ type CompletionResponse = {
   error?: { message?: string };
 };
 
+/**
+ * Duas rotas, e a diferença muda quem paga a conta:
+ *
+ *   1. Chave própria em Configurações → chamada direta à OpenRouter, SEM cota.
+ *      Os tokens saem do bolso de quem configurou; limitar isso seria cobrar
+ *      para atrapalhar.
+ *   2. Sem chave própria → passa pelo nosso servidor, que usa a NOSSA chave e
+ *      aí sim debita a cota do plano. É o custo que o Pro cobre.
+ */
 async function requestCompletion(messages: ChatMessage[], maxTokens: number): Promise<string> {
+  return getApiKey() ? requestDirect(messages, maxTokens) : requestViaServer(messages, maxTokens);
+}
+
+/** Caminho com a chave da própria pessoa. Sem limite nosso. */
+async function requestDirect(messages: ChatMessage[], maxTokens: number): Promise<string> {
   const apiKey = getApiKey();
   if (!apiKey) throw new MissingApiKeyError();
 
@@ -75,12 +95,37 @@ async function requestCompletion(messages: ChatMessage[], maxTokens: number): Pr
     }
 
     const content = payload.choices?.[0]?.message?.content;
-    if (content && content.trim()) {
-      return content.trim();
-    }
+    if (content && content.trim()) return content.trim();
 
-    // Router landed on a model that produced no text — retry lands on another one.
+    // O roteador caiu num modelo que não produziu texto — tentar de novo cai
+    // em outro.
     lastError = 'A IA não retornou uma resposta. Tente novamente.';
+  }
+
+  throw new Error(lastError);
+}
+
+/** Caminho pelo nosso servidor: a chave é nossa e a cota do plano vale. */
+async function requestViaServer(messages: ChatMessage[], maxTokens: number): Promise<string> {
+  const system = messages.find((message) => message.role === 'system')?.content;
+  const prompt = messages.filter((message) => message.role === 'user').map((m) => m.content).join('\n\n');
+
+  let lastError = 'A IA não retornou uma resposta.';
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const { data, error } = await supabase.functions.invoke<{ content?: string; error?: string }>('ai', {
+      body: { system, prompt, maxTokens: Math.max(maxTokens, MIN_TOKENS) },
+    });
+
+    if (data?.content) return data.content.trim();
+
+    const message = data?.error ?? error?.message ?? lastError;
+
+    // Cota estourada não se resolve tentando de novo.
+    if (message.includes('QUOTA_EXCEEDED')) throw new Error(message);
+    if (message.includes('não configurada')) throw new MissingApiKeyError();
+
+    lastError = message;
   }
 
   throw new Error(lastError);
@@ -117,6 +162,7 @@ export function extractJson<T>(raw: string): T {
 /* ------------------------------------------------------------------ ações */
 
 export type AiAction =
+  | 'ask'
   | 'summarize'
   | 'explain'
   | 'flashcards'
@@ -143,6 +189,15 @@ type ActionSpec = {
 const WRITE_IN_PTBR = 'Escreva em português do Brasil.';
 
 export const AI_ACTIONS: Record<AiAction, ActionSpec> = {
+  ask: {
+    label: 'Perguntar',
+    hint: 'Pesquisa na web, calcula e lê suas notas',
+    icon: 'message-circle',
+    system: '',
+    prompt: (content) => content,
+    maxTokens: 1600,
+    heading: '## Resposta',
+  },
   summarize: {
     label: 'Resumir',
     hint: 'Os pontos principais em tópicos curtos',
@@ -318,4 +373,9 @@ export function outcomeToMarkdown(outcome: AiOutcome): string {
   }
 
   return `${prefix}${outcome.text}\n`;
+}
+
+/** Chamada crua do modelo, usada pelo laço de ferramentas. */
+export async function completeRaw(prompt: string, maxTokens = 1200): Promise<string> {
+  return requestCompletion([{ role: 'user', content: prompt }], maxTokens);
 }

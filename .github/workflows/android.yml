@@ -50,11 +50,14 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Testes que rodam sem aparelho
-        # Codificador de QR (conferido contra a norma) e criptografia ponta a
-        # ponta. Falhar aqui para o build antes de gastar 15 minutos compilando.
+        # QR (conferido contra a norma), criptografia ponta a ponta,
+        # calculadora (que avalia texto do modelo) e o laço de ferramentas.
+        # Falhar aqui para o build antes de gastar 15 minutos compilando.
         run: |
           node scripts/qr-test.js
           node scripts/e2e-test.js
+          node scripts/calc-test.js
+          node scripts/agent-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos
@@ -83,7 +86,7 @@ jobs:
             exit 0
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/debug.keystore
-          keytool -list -keystore android/app/debug.keystore -storepass android | grep -i sha256 || true
+          keytool -list -keystore android/app/debug.keystore -storepass android | grep -i 'sha-256' || true
 
       - name: Compilar
         working-directory: android

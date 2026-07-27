@@ -1,9 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { supabase } from '@/services/supabase';
-import { runAiAction, type AiAction, type AiOutcome } from '../services/openrouter.service';
+import { useSettingsStore } from '@/features/settings/store/useSettingsStore';
+import { runAgent } from '../services/agent';
+import {
+  completeRaw,
+  runAiAction,
+  usesOwnKey,
+  type AiAction,
+  type AiOutcome,
+} from '../services/openrouter.service';
+import type { ToolTrace } from '../tools/types';
 
 export type { AiAction, AiOutcome };
+export { usesOwnKey };
 
 /** Traduz o erro cru de cota do banco numa frase útil. */
 export function describeQuotaError(message: string): string | null {
@@ -12,45 +21,43 @@ export function describeQuotaError(message: string): string | null {
 
   const [, kind, , limit] = match;
   return kind === 'ai_call'
-    ? `Você usou seus ${limit} pedidos de IA deste mês. O Pro sobe para 500.`
-    : `Você usou seus ${limit} minutos de transcrição deste mês.`;
+    ? `Você usou seus ${limit} pedidos de IA deste mês. O Pro sobe para 500 — ou configure a sua própria chave, que não tem limite.`
+    : `Você usou seus ${limit} minutos deste mês.`;
 }
+
+export type AiResultWithTraces = AiOutcome & { traces?: ToolTrace[] };
 
 /**
- * O uso é registrado no servidor ANTES da chamada à IA — registrar depois
- * abriria a porta para não contar nada: bastaria matar o app enquanto a
- * resposta chega.
- *
- * Hoje isso só CONTA (record_usage), não barra. A chave da OpenRouter é a do
- * próprio usuário, então travar em 20 pedidos por mês não economizaria nada
- * nosso e só atrapalharia. O contador do plano fica verdadeiro desde já, e no
- * dia em que a chamada passar pelo nosso servidor basta trocar esta função por
- * `consume_quota`, que já debita com trava de linha e recusa ao estourar.
+ * A cota é aplicada no SERVIDOR, dentro da Edge Function, antes de falar com a
+ * OpenRouter. Debitar aqui no aplicativo não valeria nada: bastaria editar o
+ * app e pular a linha. E quem usa a própria chave não passa pelo nosso
+ * servidor, então não tem limite nenhum — os tokens são pagos por essa pessoa.
  */
-async function meterAiUsage(): Promise<void> {
-  const { error } = await supabase.rpc('record_usage', { p_kind: 'ai_call', p_amount: 1 });
-
-  // Sem sessão o registro falha; a IA local ainda funciona, então seguimos.
-  if (error && !error.message.includes('logado')) {
-    throw new Error(describeQuotaError(error.message) ?? error.message);
-  }
-}
-
 export function useAiAction() {
+  const allowNotes = useSettingsStore((state) => state.allowAiNotes);
   const queryClient = useQueryClient();
 
-  return useMutation<AiOutcome, Error, { action: AiAction; content: string }>({
+  return useMutation<AiResultWithTraces, Error, { action: AiAction; content: string }>({
     mutationFn: async ({ action, content }) => {
       if (!content.trim()) {
-        throw new Error('Escreva algo na nota antes de usar a IA.');
+        throw new Error('Escreva algo antes de usar a IA.');
       }
 
-      await meterAiUsage();
+      // "Perguntar" é a única ação com ferramentas: as outras trabalham sobre o
+      // texto que já está na tela e não têm o que pesquisar.
+      if (action === 'ask') {
+        const { text, traces } = await runAgent(content, {
+          complete: (prompt) => completeRaw(prompt, 1600),
+          allowNotes,
+        });
+        return { kind: 'text', action, text, traces };
+      }
+
       return runAiAction(action, content);
     },
     onSettled: () => {
-      // O contador do plano muda a cada pedido, dando certo ou não.
-      queryClient.invalidateQueries({ queryKey: ['usage'] });
+      // O contador do plano muda a cada pedido feito pela nossa conta.
+      if (!usesOwnKey()) queryClient.invalidateQueries({ queryKey: ['usage'] });
     },
   });
 }
