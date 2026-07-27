@@ -64,6 +64,13 @@ jobs:
       - name: Verificar tipos
         run: npx tsc --noEmit
 
+      - name: Linter
+        # A regra que justifica este passo é a react-hooks/rules-of-hooks: hook
+        # dentro de condição vira "Rendered fewer hooks than expected" e derruba
+        # a tela, mas só no caminho que dispara a condição — o tipo de defeito
+        # que passa despercebido em teste manual. Avisos não param o build.
+        run: npm run lint
+
       - name: Conferir se o servidor vai entrar no pacote
         # Não basta perguntar se o segredo existe: isto compila o
         # src/services/supabase.ts do mesmo jeito que o build de release compila
@@ -80,6 +87,7 @@ jobs:
           node scripts/e2e-test.js
           node scripts/calc-test.js
           node scripts/agent-test.js
+          node scripts/crash-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos

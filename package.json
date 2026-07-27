@@ -43,6 +43,8 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.4",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^57.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -50,7 +52,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint app src --ext .ts,.tsx",
+    "test": "node scripts/qr-test.js && node scripts/e2e-test.js && node scripts/calc-test.js && node scripts/agent-test.js && node scripts/crash-test.js"
   },
   "private": true
 }

@@ -1,15 +1,21 @@
 import '../global.css';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Stack, type ErrorBoundaryProps } from 'expo-router';
+import { Stack, usePathname, type ErrorBoundaryProps } from 'expo-router';
 
 import { FatalScreen } from '@/components/FatalScreen';
 import { ImageViewer } from '@/components/ImageViewer';
+import { anotarQueda, instalarRelatorDeQuedas, registrarRota } from '@/services/crash-reporter';
 import { queryClient } from '@/services/queryClient';
 import { configError } from '@/services/supabase';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { AppDrawer } from '@/features/navigation/components/AppDrawer';
+
+// Fora do componente, de propósito: precisa estar valendo antes do primeiro
+// render, senão um erro na montagem inicial passaria sem ser anotado.
+instalarRelatorDeQuedas();
 
 /**
  * O expo-router chama isto quando uma tela quebra ao desenhar. Sem ele, o
@@ -17,6 +23,12 @@ import { AppDrawer } from '@/features/navigation/components/AppDrawer';
  * "o app apresenta falhas continuamente" — que não diz nada a ninguém.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  // O handler global não enxerga erro capturado por fronteira do React: para
+  // ele, nada quebrou. Sem anotar aqui, esta queda não apareceria no registro.
+  useEffect(() => {
+    anotarQueda(error, false);
+  }, [error]);
+
   return (
     <FatalScreen
       title="Alguma coisa quebrou"
@@ -25,6 +37,20 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       onRetry={retry}
     />
   );
+}
+
+/**
+ * Guarda a tela atual para o registro de quedas. Saber em que tela aconteceu é
+ * o que transforma uma pilha de chamadas ilegível em um lugar para procurar.
+ */
+function RastreadorDeRota() {
+  const rota = usePathname();
+
+  useEffect(() => {
+    registrarRota(rota);
+  }, [rota]);
+
+  return null;
 }
 
 export default function RootLayout() {
@@ -47,6 +73,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+            <RastreadorDeRota />
             <AppDrawer />
             <ImageViewer />
           </ThemeProvider>

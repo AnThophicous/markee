@@ -18,6 +18,7 @@ import {
   type ThemePreference,
 } from '@/features/settings/store/useSettingsStore';
 import { useBottomInset } from '@/hooks/useBottomInset';
+import { listarQuedas } from '@/services/crash-reporter';
 import { useTheme } from '@/theme/ThemeProvider';
 import { cn } from '@/utils/cn';
 
@@ -37,6 +38,9 @@ export default function SettingsScreen() {
   const setAccentColor = useSettingsStore((state) => state.setAccentColor);
   const [accentVisible, setAccentVisible] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Contado na montagem: mostrar o número no próprio item evita que a pessoa
+  // precise abrir a tela para descobrir que não há nada lá.
+  const [quedas] = useState(() => listarQuedas().length);
   const allowAiNotes = useSettingsStore((state) => state.allowAiNotes);
   const setAllowAiNotes = useSettingsStore((state) => state.setAllowAiNotes);
 
@@ -127,6 +131,22 @@ export default function SettingsScreen() {
             <ApiKeyField />
           </View>
         ) : null}
+
+        <Pressable
+          onPress={() => router.push('/diagnostics')}
+          className="mt-4 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+        >
+          <Feather name="activity" size={18} color={tokens.ink} />
+          <View className="flex-1">
+            <AppText variant="body">Diagnóstico</AppText>
+            <AppText variant="small">
+              {quedas === 0
+                ? 'Nenhuma falha registrada'
+                : `${quedas} ${quedas === 1 ? 'falha registrada' : 'falhas registradas'} · toque para enviar`}
+            </AppText>
+          </View>
+          <Feather name="chevron-right" size={18} color={tokens.muted} />
+        </Pressable>
 
         <AppText variant="caption" className="mb-2 mt-6 px-1">
           Sobre

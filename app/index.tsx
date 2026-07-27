@@ -12,6 +12,7 @@ import { useNotes } from '@/features/notes/hooks/useNotes';
 import { useCreateNote } from '@/features/notes/hooks/useNoteMutations';
 import type { NoteTemplate } from '@/features/notes/templates';
 import { useBottomInset } from '@/hooks/useBottomInset';
+import { caiuNaSessaoAnterior } from '@/services/crash-reporter';
 import { useTheme } from '@/theme/ThemeProvider';
 
 export default function HomeScreen() {
@@ -22,6 +23,12 @@ export default function HomeScreen() {
   const createNote = useCreateNote();
 
   const [templatesVisible, setTemplatesVisible] = useState(false);
+
+  /**
+   * Lido uma única vez, na montagem, porque a própria leitura apaga a marca —
+   * é o que impede o aviso de reaparecer para sempre depois de uma queda só.
+   */
+  const [caiuAntes, setCaiuAntes] = useState(() => caiuNaSessaoAnterior());
 
   const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
 
@@ -38,11 +45,29 @@ export default function HomeScreen() {
     );
   };
 
-  const isEmpty = !isLoading && (notes ?? []).length === 0;
-
   return (
     <View className="flex-1 bg-canvas-light dark:bg-canvas-dark">
       <ScreenHeader title="Notas" rightIcon="search" onRightPress={() => router.push('/search')} />
+
+      {/* Aparece sozinho depois de uma queda. Sem isto, a informação existiria
+          mas ninguém saberia que existe — e o defeito continuaria sem relato. */}
+      {caiuAntes ? (
+        <Pressable
+          onPress={() => router.push('/diagnostics')}
+          className="mx-4 mb-2 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3 active:opacity-70 dark:bg-surface-dark"
+        >
+          <Feather name="alert-triangle" size={16} color={tokens.danger} />
+          <View className="flex-1">
+            <AppText variant="caption" className="text-ink-light dark:text-ink-dark">
+              O app fechou sozinho da última vez
+            </AppText>
+            <AppText variant="small">Toque para ver o motivo e enviar o relato</AppText>
+          </View>
+          <Pressable onPress={() => setCaiuAntes(false)} hitSlop={12}>
+            <Feather name="x" size={16} color={tokens.muted} />
+          </Pressable>
+        </Pressable>
+      ) : null}
 
       <NoteList
         notes={notes}
