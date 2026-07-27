@@ -1,10 +1,19 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { MIGRATION_001_INIT } from '../schema';
+import { MIGRATION_001_INIT, MIGRATION_002_CATEGORIES } from '../schema';
 
 type Migration = { version: number; sql: string };
 
-const MIGRATIONS: Migration[] = [{ version: 1, sql: MIGRATION_001_INIT }];
+/**
+ * A ordem é a da versão, e uma migração já publicada nunca é editada: quem já
+ * abriu o app tem `user_version` gravado e não roda de novo o que passou. Mudar
+ * o texto de uma migração antiga só afetaria instalações novas, e o banco
+ * passaria a ter dois formatos diferentes em campo.
+ */
+const MIGRATIONS: Migration[] = [
+  { version: 1, sql: MIGRATION_001_INIT },
+  { version: 2, sql: MIGRATION_002_CATEGORIES },
+];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');

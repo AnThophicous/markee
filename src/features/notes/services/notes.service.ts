@@ -11,6 +11,7 @@ type NoteRow = {
   title: string;
   content: string;
   folder_id: string | null;
+  category_id: string | null;
   is_favorite: number;
   is_pinned: number;
   is_deleted: number;
@@ -25,6 +26,7 @@ function mapNote(row: NoteRow): Note {
     title: row.title,
     content: row.content,
     folderId: row.folder_id,
+    categoryId: row.category_id,
     isFavorite: row.is_favorite === 1,
     isPinned: row.is_pinned === 1,
     isDeleted: row.is_deleted === 1,
@@ -79,6 +81,7 @@ async function syncNoteTags(db: SQLiteDatabase, noteId: string, content: string)
 
 export type NoteFilter = {
   folderId?: string | null;
+  categoryId?: string | null;
   favoritesOnly?: boolean;
   trashed?: boolean;
   tagName?: string;
@@ -97,6 +100,15 @@ export async function listNotes(filter: NoteFilter = {}): Promise<NoteWithTags[]
     } else {
       whereClauses.push('n.folder_id = ?');
       whereParams.push(filter.folderId);
+    }
+  }
+
+  if (filter.categoryId !== undefined) {
+    if (filter.categoryId === null) {
+      whereClauses.push('n.category_id IS NULL');
+    } else {
+      whereClauses.push('n.category_id = ?');
+      whereParams.push(filter.categoryId);
     }
   }
 
@@ -129,7 +141,7 @@ export async function getNote(id: string): Promise<NoteWithTags | null> {
 }
 
 export async function createNote(
-  initial: { folderId?: string | null; title?: string; content?: string } = {}
+  initial: { folderId?: string | null; categoryId?: string | null; title?: string; content?: string } = {}
 ): Promise<NoteWithTags> {
   const db = await getDb();
   const id = generateId();
@@ -138,12 +150,13 @@ export async function createNote(
   const content = initial.content ?? '';
 
   await db.runAsync(
-    `INSERT INTO notes (id, title, content, folder_id, is_favorite, is_pinned, is_deleted, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?)`,
+    `INSERT INTO notes (id, title, content, folder_id, category_id, is_favorite, is_pinned, is_deleted, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, ?)`,
     id,
     title,
     content,
     initial.folderId ?? null,
+    initial.categoryId ?? null,
     timestamp,
     timestamp
   );
@@ -153,6 +166,7 @@ export async function createNote(
     title,
     content,
     folderId: initial.folderId ?? null,
+    categoryId: initial.categoryId ?? null,
     isFavorite: false,
     isPinned: false,
     isDeleted: false,
@@ -163,7 +177,9 @@ export async function createNote(
   };
 }
 
-export type NotePatch = Partial<Pick<Note, 'title' | 'content' | 'folderId' | 'isFavorite' | 'isPinned'>>;
+export type NotePatch = Partial<
+  Pick<Note, 'title' | 'content' | 'folderId' | 'categoryId' | 'isFavorite' | 'isPinned'>
+>;
 
 export async function updateNote(id: string, patch: NotePatch): Promise<NoteWithTags> {
   const db = await getDb();
@@ -178,6 +194,11 @@ export async function updateNote(id: string, patch: NotePatch): Promise<NoteWith
     sets.push('content = ?');
     params.push(patch.content);
   }
+  if (patch.categoryId !== undefined) {
+    sets.push('category_id = ?');
+    params.push(patch.categoryId);
+  }
+
   if (patch.folderId !== undefined) {
     sets.push('folder_id = ?');
     params.push(patch.folderId);

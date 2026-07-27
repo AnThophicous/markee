@@ -5,6 +5,9 @@ import { Feather } from '@expo/vector-icons';
 
 import { AppText } from '@/components/AppText';
 import { Fab } from '@/components/Fab';
+import { CategoryFilterRow } from '@/features/categories/components/CategoryFilterRow';
+import { CategorySheet } from '@/features/categories/components/CategorySheet';
+import { useCategories, useCategoryCounts } from '@/features/categories/hooks/useCategories';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import { NewNoteSheet } from '@/features/notes/components/NewNoteSheet';
 import { NoteList } from '@/features/notes/components/NoteList';
@@ -19,7 +22,17 @@ export default function HomeScreen() {
   const router = useRouter();
   const { tokens } = useTheme();
   const bottom = useBottomInset(96);
-  const { data: notes, isLoading } = useNotes({});
+
+  const [categoriaFiltrada, setCategoriaFiltrada] = useState<string | null>(null);
+  const [categoriasVisivel, setCategoriasVisivel] = useState(false);
+
+  // `undefined` quando não há filtro: o serviço trata `null` como "sem
+  // categoria nenhuma", que é um filtro de verdade e não a ausência dele.
+  const { data: notes, isLoading } = useNotes(
+    categoriaFiltrada ? { categoryId: categoriaFiltrada } : {}
+  );
+  const { data: categorias } = useCategories();
+  const { data: contagens } = useCategoryCounts();
   const createNote = useCreateNote();
 
   const [templatesVisible, setTemplatesVisible] = useState(false);
@@ -69,6 +82,14 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
+      <CategoryFilterRow
+        categorias={categorias ?? []}
+        contagens={contagens ?? {}}
+        selecionada={categoriaFiltrada}
+        onSelecionar={setCategoriaFiltrada}
+        onGerenciar={() => setCategoriasVisivel(true)}
+      />
+
       <NoteList
         notes={notes}
         isLoading={isLoading}
@@ -95,6 +116,14 @@ export default function HomeScreen() {
         onClose={() => setTemplatesVisible(false)}
         onPickBlank={createBlank}
         onPickTemplate={createFromTemplate}
+      />
+
+      <CategorySheet
+        visible={categoriasVisivel}
+        onClose={() => setCategoriasVisivel(false)}
+        modo="gerenciar"
+        selecionada={categoriaFiltrada}
+        onSelecionar={setCategoriaFiltrada}
       />
     </View>
   );

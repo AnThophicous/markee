@@ -10,6 +10,7 @@ import { AiSheet } from '@/features/ai/components/AiSheet';
 import { BlockEditor } from '@/features/editor/components/BlockEditor';
 import { MarkdownPreview } from '@/features/editor/components/MarkdownPreview';
 import { FolderPickerSheet } from '@/features/folders/components/FolderPickerSheet';
+import { CategorySheet } from '@/features/categories/components/CategorySheet';
 import { NoteActionsSheet } from '@/features/notes/components/NoteActionsSheet';
 import { useNote } from '@/features/notes/hooks/useNote';
 import { useSoftDeleteNote, useUpdateNote } from '@/features/notes/hooks/useNoteMutations';
@@ -32,6 +33,7 @@ export default function NoteEditorScreen() {
   const [mode, setMode] = useState<'read' | 'edit'>('edit');
   const [actionsVisible, setActionsVisible] = useState(false);
   const [folderPickerVisible, setFolderPickerVisible] = useState(false);
+  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [reminderVisible, setReminderVisible] = useState(false);
   const [aiVisible, setAiVisible] = useState(false);
 
@@ -163,6 +165,7 @@ export default function NoteEditorScreen() {
         onToggleFavorite={() => updateNote.mutate({ id, patch: { isFavorite: !note.isFavorite } })}
         onTogglePin={() => updateNote.mutate({ id, patch: { isPinned: !note.isPinned } })}
         onMoveToFolder={() => setFolderPickerVisible(true)}
+        onSetCategory={() => setCategoryPickerVisible(true)}
         onSetReminder={() => setReminderVisible(true)}
         onExport={() => exportNoteAsMarkdown(title, content)}
         onDelete={handleDelete}
@@ -173,6 +176,14 @@ export default function NoteEditorScreen() {
         onClose={() => setFolderPickerVisible(false)}
         selectedFolderId={note.folderId}
         onSelect={(folderId) => updateNote.mutate({ id, patch: { folderId } })}
+      />
+
+      <CategorySheet
+        visible={categoryPickerVisible}
+        onClose={() => setCategoryPickerVisible(false)}
+        modo="escolher"
+        selecionada={note.categoryId}
+        onSelecionar={(categoryId) => updateNote.mutate({ id, patch: { categoryId } })}
       />
 
       <ReminderSheet

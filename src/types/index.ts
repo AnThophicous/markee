@@ -11,12 +11,25 @@ export type Note = {
   title: string;
   content: string;
   folderId: string | null;
+  /** Categoria da nota. Nula enquanto ninguém escolheu uma. */
+  categoryId: string | null;
   isFavorite: boolean;
   isPinned: boolean;
   isDeleted: boolean;
   deletedAt: number | null;
   createdAt: number;
   updatedAt: number;
+};
+
+export type Category = {
+  id: string;
+  name: string;
+  /** Hexadecimal. A mesma paleta dos gráficos, conferida para daltonismo. */
+  color: string;
+  /** Nome do ícone do Feather. */
+  icon: string;
+  position: number;
+  createdAt: number;
 };
 
 export type NoteWithTags = Note & { tags: string[] };

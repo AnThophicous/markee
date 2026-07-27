@@ -96,6 +96,7 @@ jobs:
           node scripts/crash-test.js
           node scripts/blocks-test.js
           node scripts/chart-test.js
+          node scripts/db-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { AppText } from '@/components/AppText';
 import { EmptyState } from '@/components/EmptyState';
+import { useCategories } from '@/features/categories/hooks/useCategories';
 import type { NoteWithTags } from '@/types';
 import { useSoftDeleteNote, useUpdateNote } from '../hooks/useNoteMutations';
 import { NoteListItem } from './NoteListItem';
@@ -54,6 +55,14 @@ export function NoteList({
   const router = useRouter();
   const updateNote = useUpdateNote();
   const softDeleteNote = useSoftDeleteNote();
+  const { data: categorias } = useCategories();
+
+  /**
+   * O mapa é montado uma vez aqui em cima em vez de cada linha consultar por
+   * conta própria. Numa lista longa isso seria uma busca por cartão desenhado,
+   * repetida a cada rolagem.
+   */
+  const porId = new Map((categorias ?? []).map((categoria) => [categoria.id, categoria]));
 
   if (!isLoading && (!notes || notes.length === 0)) {
     return (
@@ -78,6 +87,7 @@ export function NoteList({
         ) : (
           <NoteListItem
             note={item.note}
+            categoria={item.note.categoryId ? porId.get(item.note.categoryId) ?? null : null}
             onPress={() => router.push({ pathname: '/note/[id]', params: { id: item.note.id } })}
             onToggleFavorite={() =>
               updateNote.mutate({ id: item.note.id, patch: { isFavorite: !item.note.isFavorite } })

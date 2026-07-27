@@ -54,7 +54,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint app src --ext .ts,.tsx",
-    "test": "node scripts/qr-test.js && node scripts/e2e-test.js && node scripts/calc-test.js && node scripts/agent-test.js && node scripts/crash-test.js && node scripts/blocks-test.js && node scripts/chart-test.js"
+    "test": "node scripts/qr-test.js && node scripts/e2e-test.js && node scripts/calc-test.js && node scripts/agent-test.js && node scripts/crash-test.js && node scripts/blocks-test.js && node scripts/chart-test.js && node scripts/db-test.js"
   },
   "private": true
 }

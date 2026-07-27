@@ -14,6 +14,7 @@ type NoteActionsSheetProps = {
   onToggleFavorite: () => void;
   onTogglePin: () => void;
   onMoveToFolder: () => void;
+  onSetCategory: () => void;
   onSetReminder: () => void;
   onExport: () => void;
   onDelete: () => void;
@@ -26,6 +27,7 @@ export function NoteActionsSheet({
   onToggleFavorite,
   onTogglePin,
   onMoveToFolder,
+  onSetCategory,
   onSetReminder,
   onExport,
   onDelete,
@@ -57,6 +59,8 @@ export function NoteActionsSheet({
       {row('star', note.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos', onToggleFavorite)}
       <Divider />
       {row('bookmark', note.isPinned ? 'Desafixar nota' : 'Fixar nota', onTogglePin)}
+      <Divider />
+      {row('tag', 'Categoria', onSetCategory)}
       <Divider />
       {row('folder', 'Mover para pasta', onMoveToFolder)}
       <Divider />

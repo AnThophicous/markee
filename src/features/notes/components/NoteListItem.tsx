@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 
 import { AppText } from '@/components/AppText';
 import { useTheme } from '@/theme/ThemeProvider';
-import type { NoteWithTags } from '@/types';
+import type { Category, NoteWithTags } from '@/types';
 import { formatRelativeDate } from '@/utils/date';
 import { previewSnippet } from '@/utils/text';
 
@@ -16,13 +16,22 @@ const SPRING = { damping: 40, stiffness: 400, mass: 1 };
 
 type NoteListItemProps = {
   note: NoteWithTags;
+  /** Já resolvida pela lista; nula quando a nota não tem categoria. */
+  categoria: Category | null;
   onPress: () => void;
   onTogglePin: () => void;
   onToggleFavorite: () => void;
   onDelete: () => void;
 };
 
-export function NoteListItem({ note, onPress, onTogglePin, onToggleFavorite, onDelete }: NoteListItemProps) {
+export function NoteListItem({
+  note,
+  categoria,
+  onPress,
+  onTogglePin,
+  onToggleFavorite,
+  onDelete,
+}: NoteListItemProps) {
   const { tokens } = useTheme();
   const translateX = useSharedValue(0);
 
@@ -88,6 +97,25 @@ export function NoteListItem({ note, onPress, onTogglePin, onToggleFavorite, onD
             </View>
 
             <View className="mt-2.5 flex-row items-center gap-1.5">
+              {/* A etiqueta vem antes da data porque é o que se procura correndo
+                  o olho pela lista — cor e nome juntos, para funcionar também
+                  para quem não distingue as cores. */}
+              {categoria ? (
+                <View
+                  style={{ backgroundColor: categoria.color + '22' }}
+                  className="flex-row items-center gap-1 rounded-full px-2 py-0.5"
+                >
+                  <Feather
+                    name={categoria.icon as keyof typeof Feather.glyphMap}
+                    size={10}
+                    color={categoria.color}
+                  />
+                  <AppText variant="small" style={{ color: categoria.color }}>
+                    {categoria.name}
+                  </AppText>
+                </View>
+              ) : null}
+
               <AppText variant="small" className="mr-auto">
                 {formatRelativeDate(note.updatedAt)}
               </AppText>
