@@ -17,7 +17,26 @@
 const ts = require('typescript');
 const fs = require('fs');
 const path = require('path');
-const { DatabaseSync } = require('node:sqlite');
+
+/**
+ * `node:sqlite` é embutido, mas só a partir do Node 22.5. Em versão anterior o
+ * require morre com ERR_UNKNOWN_BUILTIN_MODULE, uma mensagem que não diz o que
+ * fazer — já derrubou um build inteiro por causa disso.
+ *
+ * Falha explicando, em vez de pular em silêncio: um teste que se desliga sozinho
+ * quando o ambiente não serve deixa de ser teste, e ninguém percebe que as
+ * migrações pararam de ser conferidas.
+ */
+let DatabaseSync;
+try {
+  ({ DatabaseSync } = require('node:sqlite'));
+} catch {
+  console.error(
+    `\nEste teste precisa do Node 22.5 ou mais novo (encontrei ${process.version}).\n` +
+      'Ele roda as migrações num SQLite de verdade usando o módulo node:sqlite.\n'
+  );
+  process.exit(1);
+}
 
 // O schema é TypeScript só por causa dos template literals; transpilar é o
 // jeito de ler exatamente o SQL que vai para o aparelho, sem copiá-lo aqui.

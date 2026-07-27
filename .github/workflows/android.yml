@@ -44,7 +44,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22, e não 20, por causa do db-test.js: ele roda as migrações num
+          # SQLite de verdade usando `node:sqlite`, que só existe a partir do
+          # Node 22.5. No Node 20 o teste morre com ERR_UNKNOWN_BUILTIN_MODULE.
+          node-version: 22
           cache: npm
 
       # O Gradle do Android precisa de JDK 17. O runner traz vários, então a
