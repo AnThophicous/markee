@@ -24,6 +24,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
+    # No job inteiro, e não em um passo só, de propósito.
+    #
+    # Estas duas variáveis não são lidas quando o app abre: o babel-preset-expo
+    # troca `process.env.EXPO_PUBLIC_*` pelo valor literal enquanto compila. E
+    # quem compila o JavaScript é a tarefa do Gradle, lá embaixo — não o
+    # `expo prebuild`, que apenas gera a pasta android/.
+    #
+    # Elas já estiveram declaradas somente no passo do prebuild. O build passava,
+    # o APK era publicado, e ele fechava sozinho na primeira tela, porque o valor
+    # gravado tinha sido `undefined`. Declarar aqui em cima é o que garante que
+    # o passo certo enxergue as variáveis.
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +64,13 @@ jobs:
       - name: Verificar tipos
         run: npx tsc --noEmit
 
+      - name: Conferir se o servidor vai entrar no pacote
+        # Não basta perguntar se o segredo existe: isto compila o
+        # src/services/supabase.ts do mesmo jeito que o build de release compila
+        # e confere o que ficou gravado na variável. É a diferença entre "a
+        # variável está definida no runner" e "o endereço está dentro do APK".
+        run: node scripts/env-check.js
+
       - name: Testes que rodam sem aparelho
         # QR (conferido contra a norma), criptografia ponta a ponta,
         # calculadora (que avalia texto do modelo) e o laço de ferramentas.
@@ -63,9 +85,6 @@ jobs:
         # A pasta android/ não fica no repositório: é derivada do app.json e dos
         # plugins. Gerar a cada build evita que ela envelheça em silêncio.
         run: npx expo prebuild --platform android --clean --no-install
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Enxugar o APK
         # O prebuild empacota QUATRO arquiteturas num APK só: arm64-v8a,
@@ -112,6 +131,24 @@ jobs:
           cp "$SRC" "$NAME.apk"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           ls -lh "$NAME.apk"
+
+      - name: Confirmar o endereço dentro do APK
+        # Confirmação secundária, olhando o arquivo que a pessoa vai instalar.
+        # O portão de verdade é o env-check.js, que roda antes de compilar; aqui
+        # é só para o registro do build mostrar o resultado final.
+        #
+        # Avisa em vez de falhar: o pacote passa pelo Hermes e vira bytecode, e
+        # não quero derrubar um build bom por causa de como o Hermes guardou o
+        # texto. O endereço não é segredo — a chave publicável é protegida por
+        # RLS e o app é de código aberto —, mas mesmo assim só o domínio é
+        # impresso, nunca a chave.
+        run: |
+          BUNDLE=$(unzip -p "${{ steps.apk.outputs.name }}.apk" assets/index.android.bundle 2>/dev/null | strings || true)
+          if echo "$BUNDLE" | grep -qF "$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's|https://||')"; then
+            echo "OK: o endereço do servidor está gravado dentro do APK."
+          else
+            echo "::warning::Não achei o endereço no pacote. Pode ser só o formato do Hermes — confira instalando."
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
