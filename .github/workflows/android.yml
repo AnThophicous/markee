@@ -67,6 +67,15 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
+      - name: Enxugar o APK
+        # O prebuild empacota as quatro arquiteturas (arm64-v8a, armeabi-v7a,
+        # x86, x86_64) num APK só — e x86 existe apenas em emulador. Cortar as
+        # duas de emulador tira quase metade do peso de quem vai baixar isto
+        # pelo celular.
+        run: |
+          sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a/' android/gradle.properties
+          grep -E 'reactNativeArchitectures|enableProguard|shrinkResources' android/gradle.properties || true
+
       - name: Usar a nossa chave de assinatura
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
