@@ -13,10 +13,16 @@ import { AvisoBar } from '@/components/AvisoBar';
 import { configError } from '@/services/supabase';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { AppDrawer } from '@/features/navigation/components/AppDrawer';
+import { instalarGuardaDeSessao } from '@/features/auth/services/session-guard';
 
 // Fora do componente, de propósito: precisa estar valendo antes do primeiro
 // render, senão um erro na montagem inicial passaria sem ser anotado.
 instalarRelatorDeQuedas();
+
+// Também fora do componente: precisa estar escutando antes da primeira tela
+// buscar qualquer coisa, senão a troca de conta que acontece durante a abertura
+// passa sem limpar o cache.
+instalarGuardaDeSessao();
 
 /**
  * O expo-router chama isto quando uma tela quebra ao desenhar. Sem ele, o

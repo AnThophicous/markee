@@ -264,6 +264,64 @@ const bad = (n, d) => { fail++; console.log('  FAIL ' + n + (d ? ' -> ' + String
       console.log('  --   não há grupo de outro dono para testar; pulando');
     }
 
+    /* ----------------------------------------------- o Pro é do servidor
+     *
+     * Nada aqui olha para o aplicativo. Roda como a conta free de verdade e
+     * tenta gravar recurso pago direto no banco — que é exatamente o que um APK
+     * modificado consegue fazer. Se o gatilho recusa aqui, mexer no app não
+     * adianta.
+     *
+     * Testa os dois lados de propósito: um bloqueio que recusa todo mundo
+     * também "passaria" num teste que só olha o free, e estaria quebrado.
+     */
+    const contaFree = (
+      await c.query(`select id from public.profiles where public.current_plan(id) = 'free' limit 1`)
+    ).rows[0];
+    const contaPro = (
+      await c.query(`select id from public.profiles where public.current_plan(id) = 'pro' limit 1`)
+    ).rows[0];
+
+    const PAGOS = [
+      ['gradiente', `update public.profiles set profile_theme = '{"kind":"gradient","colors":["#ff0000","#0000ff"],"effect":"none"}'::jsonb where id = $1`],
+      ['efeito', `update public.profiles set profile_theme = '{"kind":"solid","colors":["#ff0000"],"effect":"glow"}'::jsonb where id = $1`],
+      ['banner', `update public.profiles set banner_url = 'https://exemplo/x.png' where id = $1`],
+    ];
+
+    if (contaFree) {
+      await c.query(`select set_config('request.jwt.claims', $1, true)`, [
+        JSON.stringify({ sub: contaFree.id, role: 'authenticated' }),
+      ]);
+      for (const [nome, sql] of PAGOS) {
+        const t = await tentar(sql, [contaFree.id]);
+        if (!t.ok && t.erro.includes('PRO_REQUIRED')) ok(`conta free é recusada ao gravar ${nome}`);
+        else if (t.ok) bad(`FURO: conta free gravou ${nome} direto no banco`);
+        else bad(`free recusada em ${nome}, mas por outro motivo`, t.erro);
+      }
+    } else {
+      console.log('  --   nenhuma conta free para testar o bloqueio; pulando');
+    }
+
+    if (contaPro) {
+      await c.query(`select set_config('request.jwt.claims', $1, true)`, [
+        JSON.stringify({ sub: contaPro.id, role: 'authenticated' }),
+      ]);
+      for (const [nome, sql] of PAGOS) {
+        const t = await tentar(sql, [contaPro.id]);
+        if (t.ok) ok(`conta pro grava ${nome} normalmente`);
+        else bad(`o bloqueio está recusando quem pagou (${nome})`, t.erro);
+      }
+    } else {
+      console.log('  --   nenhuma conta pro para testar o outro lado; pulando');
+    }
+
+    // E o plano tem de sair da assinatura, nunca de um padrão generoso: uma
+    // conta sem assinatura nenhuma precisa cair em free.
+    const semAssinatura = await c.query(
+      `select public.current_plan('00000000-0000-0000-0000-000000000000'::uuid) as plano`
+    );
+    if (semAssinatura.rows[0].plano === 'free') ok('conta sem assinatura é free, não pro');
+    else bad('conta sem assinatura virou', semAssinatura.rows[0].plano);
+
     /* ------------------------------------- a função não deixa se promover */
     const corpo = await c.query(
       `select pg_get_functiondef(oid) as def from pg_proc
