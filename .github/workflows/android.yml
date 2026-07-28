@@ -85,12 +85,15 @@ jobs:
         # QR (conferido contra a norma), criptografia ponta a ponta, calculadora
         # (que avalia texto do modelo), laço de ferramentas, registro de quedas,
         # conversão markdown↔blocos, geometria dos gráficos, migrações do banco
-        # local, legibilidade das cores de cargo, a faixa de avisos e a paleta.
+        # local, legibilidade das cores de cargo, a faixa de avisos, a paleta, a
+        # navegação, o carrossel, a separação da aula e a transcrição local.
         #
         # Os que mais pegam defeito silencioso: a conversão instável faria a nota
         # mudar sozinha a cada abertura; um NaN na geometria faz o gráfico sumir
         # sem erro nenhum; uma migração quebrada abre o app com o banco pela
-        # metade; e uma cor de cargo sem contraste some no fundo sem avisar.
+        # metade; uma cor de cargo sem contraste some no fundo sem avisar; e um
+        # modelo de transcrição grande demais para a memória do aparelho não
+        # deixa o app lento, deixa o app morto no meio da aula já gravada.
         #
         # Falhar aqui para o build antes de gastar 15 minutos compilando.
         run: |
@@ -108,6 +111,7 @@ jobs:
           node scripts/nav-test.js
           node scripts/carousel-test.js
           node scripts/classify-test.js
+          node scripts/whisper-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos
