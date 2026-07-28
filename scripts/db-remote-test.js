@@ -211,6 +211,59 @@ const bad = (n, d) => { fail++; console.log('  FAIL ' + n + (d ? ' -> ' + String
       }
     }
 
+    /* --------------------------------------------------- apagar um grupo
+     *
+     * "Nem dá para apagar grupo" foi um relato de quem usa, e o defeito estava
+     * na interface — não havia caminho até o botão. Mesmo assim o servidor
+     * entra aqui: se um dia a `delete_group` parar de funcionar, o sintoma vai
+     * ser exatamente o mesmo, e sem este teste a busca começaria de novo pela
+     * interface.
+     */
+    const gidNovo = (
+      await c.query(
+        `insert into public.groups (name, owner_id, join_code)
+         values ('Grupo de teste automatizado', $1, 'zztest1') returning id`,
+        [uid]
+      )
+    ).rows[0].id;
+
+    // Conteúdo dentro: é o caso real, e é onde uma chave estrangeira sem
+    // CASCADE apareceria — o DELETE falharia só em grupo que já foi usado.
+    const salaNova = (
+      await c.query(
+        `insert into public.rooms (group_id, name, kind) values ($1, 'geral', 'chat') returning id`,
+        [gidNovo]
+      )
+    ).rows[0].id;
+    await c.query(`insert into public.messages (room_id, author_id, content) values ($1, $2, 'oi')`, [
+      salaNova,
+      uid,
+    ]);
+
+    await c.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: uid, role: 'authenticated' }),
+    ]);
+
+    r = await tentar('select public.delete_group($1)', [gidNovo]);
+    if (r.ok) ok('o dono apaga o próprio grupo, mesmo com sala e mensagem dentro');
+    else bad('delete_group falhou para o dono', r.erro);
+
+    const sobrou = await c.query('select count(*)::int as n from public.groups where id = $1', [gidNovo]);
+    if (sobrou.rows[0].n === 0) ok('o grupo some mesmo do banco');
+    else bad('o grupo continuou lá depois do delete_group');
+
+    // E o não-dono precisa ser recusado com erro, não em silêncio: um UPDATE ou
+    // DELETE que não acha nada não é erro em SQL, e o app não teria como
+    // distinguir "recusado" de "deu certo".
+    const alheio = await c.query('select id from public.groups where owner_id <> $1 limit 1', [uid]);
+    if (alheio.rows.length > 0) {
+      r = await tentar('select public.delete_group($1)', [alheio.rows[0].id]);
+      if (!r.ok) ok('quem não é dono é recusado com erro ao tentar apagar');
+      else bad('NÃO-DONO APAGOU GRUPO ALHEIO');
+    } else {
+      console.log('  --   não há grupo de outro dono para testar; pulando');
+    }
+
     /* ------------------------------------- a função não deixa se promover */
     const corpo = await c.query(
       `select pg_get_functiondef(oid) as def from pg_proc

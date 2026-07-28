@@ -10,6 +10,8 @@ import type { Group } from '../services/groups.service';
 type GroupCardProps = {
   group: Group;
   onPress: () => void;
+  /** Segurar o cartão abre as ações — é por onde se sai ou se apaga o grupo. */
+  onLongPress?: () => void;
 };
 
 /**
@@ -17,7 +19,7 @@ type GroupCardProps = {
  * estilos (`theme.card`); o padrão continua sendo o mais discreto, para uma
  * lista com muitos grupos não virar um mural.
  */
-export function GroupCard({ group, onPress }: GroupCardProps) {
+export function GroupCard({ group, onPress, onLongPress }: GroupCardProps) {
   const { tokens } = useTheme();
   const { theme } = group;
   const subtitle = group.description || (group.mascotName ? `Mascote: ${group.mascotName}` : 'Grupo de estudo');
@@ -25,7 +27,11 @@ export function GroupCard({ group, onPress }: GroupCardProps) {
   if (theme.card === 'cover') {
     const ink = readableTextOn(theme.colors[0]);
     return (
-      <Pressable onPress={onPress} className="mx-4 mb-2 overflow-hidden rounded-2xl active:opacity-85">
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        className="mx-4 mb-2 overflow-hidden rounded-2xl active:opacity-85"
+      >
         <ThemeBanner theme={theme} imageUrl={group.bannerUrl} height={96}>
           <View className="absolute inset-0 flex-row items-center gap-3 px-4">
             <GroupIcon group={group} glow={theme.effect === 'glow'} />
@@ -51,6 +57,7 @@ export function GroupCard({ group, onPress }: GroupCardProps) {
     return (
       <Pressable
         onPress={onPress}
+        onLongPress={onLongPress}
         className="mx-4 mb-2 flex-row items-center gap-3 overflow-hidden rounded-2xl px-4 py-3.5 active:opacity-70"
         // 0x1F ≈ 12% de opacidade: tinge sem brigar com o texto do tema claro.
         style={{ backgroundColor: theme.colors[0] + '1F' }}
@@ -73,6 +80,7 @@ export function GroupCard({ group, onPress }: GroupCardProps) {
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       className="flex-row items-center gap-3 px-4 py-3.5 active:bg-subtle-light dark:active:bg-subtle-dark"
     >
       <GroupIcon group={group} glow={false} />

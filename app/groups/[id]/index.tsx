@@ -15,6 +15,7 @@ import { ThemePickerSheet } from '@/components/ThemePickerSheet';
 import { useIsPro } from '@/features/billing/hooks/useMyUsage';
 import { EventSheet } from '@/features/groups/components/EventSheet';
 import { GroupBanner } from '@/features/groups/components/GroupBanner';
+import { GroupDangerSheet } from '@/features/groups/components/GroupDangerSheet';
 import { useCreateEvent, useDeleteEvent, useGroupEvents } from '@/features/groups/hooks/useGroupEvents';
 import { useGroupIdentity } from '@/features/groups/hooks/useGroupIdentity';
 import {
@@ -61,6 +62,8 @@ export default function GroupDetailScreen() {
   const [themeVisible, setThemeVisible] = useState(false);
   const [eventVisible, setEventVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [dangerVisible, setDangerVisible] = useState(false);
+  const [erroSaida, setErroSaida] = useState<string | null>(null);
   const [inviteVisible, setInviteVisible] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [mascotName, setMascotName] = useState('');
@@ -383,13 +386,15 @@ export default function GroupDetailScreen() {
         <View className="mt-6 gap-3 px-6">
           <Button label="Convidar com QR code" onPress={() => setInviteVisible(true)} />
           <Button label="Compartilhar link do convite" variant="secondary" onPress={shareCode} />
-          {!isOwner ? (
-            <Button
-              label="Sair do grupo"
-              variant="danger"
-              onPress={() => leaveGroup.mutate(id, { onSuccess: () => router.replace('/groups') })}
-            />
-          ) : null}
+          {/* Fica aqui, à vista, e não escondido nos ajustes: sair de um grupo
+              não é uma configuração, e o dono não tinha caminho nenhum — a
+              exclusão morava atrás da engrenagem, que só aparece com
+              MANAGE_GROUP, no fim de um painel que rola. */}
+          <Button
+            label={isOwner ? 'Apagar grupo' : 'Sair do grupo'}
+            variant="danger"
+            onPress={() => setDangerVisible(true)}
+          />
         </View>
       </ScrollView>
 
@@ -474,13 +479,38 @@ export default function GroupDetailScreen() {
         }
       />
 
+      <GroupDangerSheet
+        // Remonta a cada abertura: a confirmação nunca começa armada.
+        key={dangerVisible ? 'aberto' : 'fechado'}
+        visible={dangerVisible}
+        onClose={() => {
+          setDangerVisible(false);
+          setErroSaida(null);
+        }}
+        groupName={group.name}
+        isOwner={isOwner}
+        pending={leaveGroup.isPending || deleteGroup.isPending}
+        erro={erroSaida}
+        onLeave={() =>
+          leaveGroup.mutate(id, {
+            onSuccess: () => router.replace('/groups'),
+            onError: (e) => setErroSaida(e.message),
+          })
+        }
+        onDelete={() =>
+          deleteGroup.mutate(id, {
+            onSuccess: () => router.replace('/groups'),
+            onError: (e) => setErroSaida(e.message),
+          })
+        }
+      />
+
       <GroupSettingsSheet
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
         name={group.name}
         description={group.description ?? ''}
         isPublic={group.isPublic}
-        isOwner={isOwner}
         onSave={(patch) => {
           updateGroup.mutate(patch, {
             onSuccess: () => setSettingsVisible(false),
@@ -502,10 +532,6 @@ export default function GroupDetailScreen() {
         onRoles={() => {
           setSettingsVisible(false);
           router.push({ pathname: '/groups/[id]/roles', params: { id } });
-        }}
-        onDelete={() => {
-          setSettingsVisible(false);
-          deleteGroup.mutate(id, { onSuccess: () => router.replace('/groups') });
         }}
       />
 
@@ -588,32 +614,27 @@ function GroupSettingsSheet({
   name,
   description,
   isPublic,
-  isOwner,
   onSave,
   onPickBanner,
   onPickMascot,
   onTheme,
   onRoles,
-  onDelete,
 }: {
   visible: boolean;
   onClose: () => void;
   name: string;
   description: string;
   isPublic: boolean;
-  isOwner: boolean;
   onSave: (patch: { name?: string; description?: string; isPublic?: boolean }) => void;
   onPickBanner: () => void;
   onPickMascot: () => void;
   onTheme: () => void;
   onRoles: () => void;
-  onDelete: () => void;
 }) {
   const { tokens } = useTheme();
   const [draftName, setDraftName] = useState(name);
   const [draftDescription, setDraftDescription] = useState(description);
   const [draftPublic, setDraftPublic] = useState(isPublic);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   return (
     <Sheet visible={visible} onClose={onClose} edge="bottom">
@@ -663,17 +684,6 @@ function GroupSettingsSheet({
         <SettingsRow icon="smile" label="Mascote" onPress={onPickMascot} />
         <SettingsRow icon="shield" label="Cargos e permissões" onPress={onRoles} />
 
-        {isOwner ? (
-          <Pressable
-            onPress={() => (confirmingDelete ? onDelete() : setConfirmingDelete(true))}
-            className="mt-2 flex-row items-center gap-3 py-3.5"
-          >
-            <Feather name="trash-2" size={18} color={tokens.danger} />
-            <AppText variant="body" className="text-danger">
-              {confirmingDelete ? 'Toque de novo para apagar de vez' : 'Apagar grupo'}
-            </AppText>
-          </Pressable>
-        ) : null}
       </ScrollView>
 
       <Button

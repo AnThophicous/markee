@@ -10,7 +10,15 @@ import { EmptyState } from '@/components/EmptyState';
 import { Sheet } from '@/components/Sheet';
 import { useSession } from '@/features/auth/hooks/useSession';
 import { GroupCard } from '@/features/groups/components/GroupCard';
-import { useCreateGroup, useJoinGroup, useMyGroups } from '@/features/groups/hooks/useGroups';
+import { GroupDangerSheet } from '@/features/groups/components/GroupDangerSheet';
+import {
+  useCreateGroup,
+  useDeleteGroup,
+  useJoinGroup,
+  useLeaveGroup,
+  useMyGroups,
+} from '@/features/groups/hooks/useGroups';
+import type { Group } from '@/features/groups/services/groups.service';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import { useBottomInset } from '@/hooks/useBottomInset';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -19,17 +27,21 @@ export default function GroupsScreen() {
   const router = useRouter();
   const { tokens } = useTheme();
   const bottom = useBottomInset(16);
-  const { isSignedIn, isLoading: sessionLoading } = useSession();
+  const { user, isSignedIn, isLoading: sessionLoading } = useSession();
 
   const { data: groups, isLoading } = useMyGroups();
   const createGroup = useCreateGroup();
   const joinGroup = useJoinGroup();
+  const deleteGroup = useDeleteGroup();
+  const leaveGroup = useLeaveGroup();
 
   const [createVisible, setCreateVisible] = useState(false);
   const [joinVisible, setJoinVisible] = useState(false);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [acoesDe, setAcoesDe] = useState<Group | null>(null);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionLoading && !isSignedIn) router.replace('/login');
@@ -64,6 +76,35 @@ export default function GroupsScreen() {
     });
   };
 
+  /**
+   * Sair e apagar terminam do mesmo jeito: fecha o painel e a lista se
+   * atualiza sozinha, porque as duas mutações invalidam a lista de grupos.
+   * O erro fica na tela em vez de sumir — era esse o defeito antigo, a ação
+   * falhava e nada acontecia.
+   */
+  const fecharAcoes = () => {
+    setAcoesDe(null);
+    setErroAcao(null);
+  };
+
+  const handleLeave = () => {
+    if (!acoesDe) return;
+    setErroAcao(null);
+    leaveGroup.mutate(acoesDe.id, {
+      onSuccess: fecharAcoes,
+      onError: (e) => setErroAcao(e.message),
+    });
+  };
+
+  const handleDelete = () => {
+    if (!acoesDe) return;
+    setErroAcao(null);
+    deleteGroup.mutate(acoesDe.id, {
+      onSuccess: fecharAcoes,
+      onError: (e) => setErroAcao(e.message),
+    });
+  };
+
   if (sessionLoading || !isSignedIn) {
     return (
       <View className="flex-1 items-center justify-center bg-canvas-light dark:bg-canvas-dark">
@@ -95,6 +136,7 @@ export default function GroupsScreen() {
               <GroupCard
                 group={group}
                 onPress={() => router.push({ pathname: '/groups/[id]', params: { id: group.id } })}
+                onLongPress={() => setAcoesDe(group)}
               />
               {/* O separador só faz sentido no estilo simples; os outros já
                   têm forma própria e ficariam com uma risca sobrando. */}
@@ -108,8 +150,26 @@ export default function GroupsScreen() {
               Entrar com código
             </AppText>
           </Pressable>
+
+          {/* Segurar não se descobre sozinho — por isso está escrito. */}
+          <AppText variant="small" className="px-4 pb-2" style={{ color: tokens.muted }}>
+            Segure um grupo para sair dele ou apagá-lo.
+          </AppText>
         </ScrollView>
       )}
+
+      <GroupDangerSheet
+        // Remonta a cada abertura: a confirmação nunca começa armada.
+        key={acoesDe?.id ?? 'fechado'}
+        visible={Boolean(acoesDe)}
+        onClose={fecharAcoes}
+        groupName={acoesDe?.name ?? ''}
+        isOwner={acoesDe?.ownerId === user?.id}
+        onLeave={handleLeave}
+        onDelete={handleDelete}
+        pending={leaveGroup.isPending || deleteGroup.isPending}
+        erro={erroAcao}
+      />
 
       <Sheet visible={createVisible} onClose={() => setCreateVisible(false)} edge="bottom">
         <AppText variant="heading" className="mb-3 px-1">
