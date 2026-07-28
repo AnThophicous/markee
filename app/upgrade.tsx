@@ -41,7 +41,7 @@ export default function UpgradeScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: bottom }}>
         <View className="mx-4 overflow-hidden rounded-3xl">
-          <LinearGradient colors={['#F62283', '#7B2FF7']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <LinearGradient colors={['#0B57D0', '#34A853']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <View className="p-6">
               <AppText style={{ fontSize: 30, fontWeight: '700', color: '#fff' }}>
                 {isPro ? 'Você é Pro' : 'R$ 9,90'}

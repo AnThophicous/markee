@@ -234,7 +234,7 @@ export function ColorPicker({ value, onChange, label }: ColorPickerProps) {
           autoCapitalize="characters"
           autoCorrect={false}
           maxLength={7}
-          placeholder="#F62283"
+          placeholder="#0B57D0"
           placeholderTextColor={tokens.muted}
           className="flex-1 rounded-xl bg-subtle-light px-4 py-2.5 text-[16px] text-ink-light dark:bg-subtle-dark dark:text-ink-dark"
         />

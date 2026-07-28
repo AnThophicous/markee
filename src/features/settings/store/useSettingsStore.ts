@@ -6,7 +6,16 @@ import { mmkvStorage } from '@/storage/mmkv';
 export type ThemePreference = 'light' | 'dark' | 'system';
 
 /** Rosa da marca. Ponto de partida de quem nunca mexeu na cor. */
-export const DEFAULT_ACCENT = '#F62283';
+/**
+ * Azul do Material 3, o mesmo que o Google usa como primária nos apps dele.
+ *
+ * Não é o #4285F4 da marca: aquele dá 3,1:1 sobre branco e reprova como cor de
+ * texto. Este é o azul que o Google adota justamente por causa disso.
+ *
+ * Continua trocável pela pessoa — personalizar a cor é a ideia do Material You.
+ * O que mudou é o ponto de partida.
+ */
+export const DEFAULT_ACCENT = '#0B57D0';
 
 type SettingsState = {
   themePreference: ThemePreference;

@@ -79,7 +79,7 @@ export function NoteList({
       data={rows}
       keyExtractor={(row) => (row.kind === 'header' ? 'h:' + row.label : row.note.id)}
       contentContainerStyle={{ paddingTop: 8, paddingBottom: bottomInset }}
-      renderItem={({ item }) =>
+      renderItem={({ item, index }) =>
         item.kind === 'header' ? (
           <View className="px-5 pb-2 pt-2">
             <AppText variant="small">{item.label}</AppText>
@@ -87,6 +87,10 @@ export function NoteList({
         ) : (
           <NoteListItem
             note={item.note}
+            // A cascata usa a posição na lista visível. O `atrasoEmCascata`
+            // trava no oitavo item, então o que entra ao rolar não herda um
+            // atraso enorme por estar na posição noventa.
+            indice={index}
             categoria={item.note.categoryId ? porId.get(item.note.categoryId) ?? null : null}
             onPress={() => router.push({ pathname: '/note/[id]', params: { id: item.note.id } })}
             onToggleFavorite={() =>

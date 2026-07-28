@@ -31,7 +31,7 @@ export function Fab({ onPress, onLongPress }: FabProps) {
         }}
         className="h-16 w-16 items-center justify-center rounded-full bg-accent"
         style={{
-          shadowColor: '#F62283',
+          shadowColor: '#0B57D0',
           shadowOpacity: 0.35,
           shadowRadius: 12,
           shadowOffset: { width: 0, height: 6 },

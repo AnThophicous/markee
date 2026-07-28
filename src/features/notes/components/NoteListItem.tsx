@@ -4,6 +4,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { AppText } from '@/components/AppText';
+import { Entrada } from '@/components/Entrada';
+import { Toque } from '@/components/Toque';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { Category, NoteWithTags } from '@/types';
 import { formatRelativeDate } from '@/utils/date';
@@ -16,6 +18,8 @@ const SPRING = { damping: 40, stiffness: 400, mass: 1 };
 
 type NoteListItemProps = {
   note: NoteWithTags;
+  /** Posição na lista, para a entrada em cascata. */
+  indice?: number;
   /** Já resolvida pela lista; nula quando a nota não tem categoria. */
   categoria: Category | null;
   onPress: () => void;
@@ -26,6 +30,7 @@ type NoteListItemProps = {
 
 export function NoteListItem({
   note,
+  indice,
   categoria,
   onPress,
   onTogglePin,
@@ -58,7 +63,7 @@ export function NoteListItem({
   const hasTitle = Boolean(note.title.trim());
 
   return (
-    <View className="mx-4 mb-2.5 overflow-hidden rounded-2xl">
+    <Entrada indice={indice} className="mx-4 mb-2.5 overflow-hidden rounded-[28px]">
       <View className="absolute right-0 top-0 h-full flex-row">
         <SwipeAction icon="star" tone="accent" onPress={() => { onToggleFavorite(); close(); }} />
         <SwipeAction icon="bookmark" tone="ink" onPress={() => { onTogglePin(); close(); }} />
@@ -68,9 +73,10 @@ export function NoteListItem({
       <GestureDetector gesture={pan}>
         <Animated.View
           style={rowStyle}
-          // No tema claro o cartão e o fundo são o mesmo branco; sem a borda a
-          // lista virava um bloco só, sem separação entre uma nota e outra.
-          className="rounded-2xl border border-hairline-light bg-surface-light dark:border-hairline-dark dark:bg-surface-dark"
+          // Canto 28 e sem borda: no Material 3 a separação entre cartão e
+          // fundo é feita por TOM, não por contorno. O `subtle` é justamente o
+          // nível de superfície acima do fundo.
+          className="rounded-[28px] bg-subtle-light dark:bg-subtle-dark"
         >
           {/* A capa é uma faixa fina no topo do cartão, não um fundo colorido:
               o texto da nota continua sobre o mesmo fundo de sempre e a cor não
@@ -78,11 +84,11 @@ export function NoteListItem({
           {note.coverColor ? (
             <View
               style={{ backgroundColor: note.coverColor }}
-              className="h-1.5 rounded-t-2xl"
+              className="h-1.5 rounded-t-[28px]"
             />
           ) : null}
 
-          <Pressable onPress={onPress} className="px-4 py-3.5 active:opacity-60">
+          <Toque onPress={onPress} className="px-4 py-3.5">
             <View className="flex-row items-start gap-2">
               {note.emoji ? (
                 <AppText style={{ fontSize: 19, lineHeight: 24 }}>{note.emoji}</AppText>
@@ -145,10 +151,10 @@ export function NoteListItem({
                 <AppText variant="small">+{note.tags.length - 2}</AppText>
               ) : null}
             </View>
-          </Pressable>
+          </Toque>
         </Animated.View>
       </GestureDetector>
-    </View>
+    </Entrada>
   );
 }
 

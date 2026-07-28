@@ -35,7 +35,7 @@ export function hsvToHex({ h, s, v }: Hsv): string {
 }
 
 export function hexToHsv(hex: string): Hsv {
-  const parsed = normalizeHex(hex) ?? '#F62283';
+  const parsed = normalizeHex(hex) ?? '#0B57D0';
   const r = parseInt(parsed.slice(1, 3), 16) / 255;
   const g = parseInt(parsed.slice(3, 5), 16) / 255;
   const b = parseInt(parsed.slice(5, 7), 16) / 255;

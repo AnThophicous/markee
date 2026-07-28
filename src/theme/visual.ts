@@ -38,7 +38,7 @@ export type VisualTheme = {
 
 export const DEFAULT_THEME: VisualTheme = {
   kind: 'solid',
-  colors: ['#F62283'],
+  colors: ['#0B57D0'],
   effect: 'none',
   card: 'plain',
 };

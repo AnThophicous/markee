@@ -24,7 +24,7 @@ export function FatalScreen({ title, message, detail, onRetry }: FatalScreenProp
   return (
     <View style={{ flex: 1, backgroundColor: '#0B0B0F' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 28 }}>
-        <Text style={{ color: '#F62283', fontSize: 13, fontWeight: '600', letterSpacing: 1 }}>
+        <Text style={{ color: '#0B57D0', fontSize: 13, fontWeight: '600', letterSpacing: 1 }}>
           MARKEE
         </Text>
 
@@ -41,7 +41,7 @@ export function FatalScreen({ title, message, detail, onRetry }: FatalScreenProp
             onPress={onRetry}
             style={{
               marginTop: 26,
-              backgroundColor: '#F62283',
+              backgroundColor: '#0B57D0',
               borderRadius: 14,
               paddingVertical: 14,
               alignItems: 'center',
