@@ -28,6 +28,7 @@ new Function('module', 'exports', outputText)(mod, mod.exports);
 const {
   MODELOS,
   ORDEM,
+  RECOMENDADO,
   urlDoModelo,
   memoriaDe,
   ramNecessaria,
@@ -73,6 +74,24 @@ console.log('\nTranscrição no aparelho\n');
 
   if (ORDEM.every((id) => urlDoModelo(MODELOS[id]).startsWith('https://'))) ok('todo modelo baixa por https');
   else bad('há modelo baixando sem https');
+
+  // O recomendado é o que a maioria vai levar, então ele carrega duas
+  // promessas: cabe em qualquer telefone, e termina uma aula em menos tempo do
+  // que a própria aula. Um recomendado que não cumpre as duas manda a maioria
+  // para a pior experiência possível — e ninguém volta para trocar de modelo.
+  const rec = MODELOS[RECOMENDADO];
+  if (rec) ok(`o recomendado é o ${rec.nome} (${RECOMENDADO})`);
+  else bad('o recomendado não está no catálogo', RECOMENDADO);
+
+  // 1 GB é o piso realista de um telefone Android em uso hoje.
+  if (cabeNaMemoria(rec, 1 * GB)) ok('o recomendado cabe até num aparelho de 1 GB');
+  else bad('o recomendado não cabe em 1 GB', ramNecessaria(rec));
+
+  if (estimarSegundos(50 * 60, rec) < 50 * 60) ok('o recomendado transcreve mais rápido que o tempo real');
+  else bad('o recomendado é mais lento que a própria aula');
+
+  if (avisoDoModelo(rec, 50 * 60) === null) ok('o recomendado não precisa de aviso de lentidão');
+  else bad('o recomendado precisa de aviso — então não devia ser o recomendado');
 }
 
 /* ----------------------------------------------------------- memória */

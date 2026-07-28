@@ -79,6 +79,21 @@ export const MODELOS: Record<IdDeModelo, Modelo> = {
 
 export const ORDEM: IdDeModelo[] = ['tiny', 'base', 'small', 'medium'];
 
+/**
+ * O que se recomenda, e o que o app oferece primeiro.
+ *
+ * É o `base`, e a escolha é por TEMPO, não por qualidade. A conta que decide:
+ * uma aula de cinquenta minutos sai em cerca de meia hora no `base`, uma hora e
+ * vinte no `small` e mais de quatro horas no `medium`. Como isto é a RESERVA de
+ * quando o crédito acabou ou a internet caiu, o que a pessoa precisa é do texto
+ * hoje — uma transcrição pior em trinta minutos vale mais do que uma um pouco
+ * melhor amanhã de manhã.
+ *
+ * O `base` também é o único que cabe em qualquer aparelho: 57 MB de arquivo,
+ * 0,4 GB de RAM exigida. Nenhum telefone em uso reprova nesse número.
+ */
+export const RECOMENDADO: IdDeModelo = 'base';
+
 export const BASE_DOS_MODELOS =
   'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/';
 

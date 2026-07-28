@@ -11,6 +11,7 @@ import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import {
   MODELOS,
   ORDEM,
+  RECOMENDADO,
   cabeNaMemoria,
   emPalavras,
   estimarSegundos,
@@ -46,6 +47,16 @@ import { useTheme } from '@/theme/ThemeProvider';
 
 /** A régua das estimativas: uma aula comum. */
 const AULA = 50 * 60;
+
+/**
+ * O recomendado encabeça a lista.
+ *
+ * A ordem do catálogo é por tamanho, que serve ao rebaixamento por memória mas
+ * não a quem está escolhendo: numa lista crescente, o primeiro cartão é o pior
+ * modelo, e é nele que o dedo cai. Aqui o primeiro é o que a maioria deve
+ * levar, e os outros ficam logo abaixo para quem quiser trocar.
+ */
+const ordemNaTela: IdDeModelo[] = [RECOMENDADO, ...ORDEM.filter((id) => id !== RECOMENDADO)];
 
 export default function TranscriptionScreen() {
   const router = useRouter();
@@ -129,7 +140,7 @@ export default function TranscriptionScreen() {
           </AppText>
         </View>
 
-        {ORDEM.map((id) => {
+        {ordemNaTela.map((id) => {
           const estado = estados.find((e) => e.modelo.id === id)!;
           const modelo = MODELOS[id];
           const cabe = cabeNaMemoria(modelo, ram);
@@ -162,7 +173,22 @@ export default function TranscriptionScreen() {
                 </View>
 
                 <View className="flex-1">
-                  <AppText variant="bodyEmphasis">{modelo.nome}</AppText>
+                  <View className="flex-row items-center gap-2">
+                    <AppText variant="bodyEmphasis">{modelo.nome}</AppText>
+                    {id === RECOMENDADO ? (
+                      <View
+                        style={{ backgroundColor: tokens.primaryContainer }}
+                        className="rounded-full px-2 py-0.5"
+                      >
+                        <AppText
+                          variant="small"
+                          style={{ color: tokens.onPrimaryContainer, fontSize: 11 }}
+                        >
+                          Recomendado
+                        </AppText>
+                      </View>
+                    ) : null}
+                  </View>
                   <AppText variant="small">
                     {tamanhoEmPalavras(modelo.bytes)} · aula de 50 min em ~{emPalavras(espera)}
                   </AppText>
