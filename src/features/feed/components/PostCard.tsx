@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
 import { AppText } from '@/components/AppText';
+import type { IdentidadeNoGrupo } from '@/features/groups/hooks/useGroupIdentity';
 import { useTheme } from '@/theme/ThemeProvider';
 import { formatRelativeDate } from '@/utils/date';
 import type { FeedPost } from '../services/feed.service';
@@ -13,6 +14,15 @@ type PostCardProps = {
   post: FeedPost;
   canModerate: boolean;
   isAuthor: boolean;
+  /**
+   * Como o autor aparece neste grupo — apelido e cor do cargo.
+   *
+   * Vem por prop em vez de sair de um `useGroupIdentity` aqui dentro porque o
+   * cartão está numa lista: o hook remonta o mapa de membros a cada cartão, e
+   * numa turma grande isso é a lista inteira de membros percorrida uma vez por
+   * post visível, a cada rolagem.
+   */
+  identidade: (userId: string, nomeDeReserva?: string) => IdentidadeNoGrupo;
   onToggleLike: () => void;
   onOpenComments: () => void;
   onTogglePin: () => void;
@@ -29,6 +39,7 @@ export function PostCard({
   post,
   canModerate,
   isAuthor,
+  identidade,
   onToggleLike,
   onOpenComments,
   onTogglePin,
@@ -38,6 +49,7 @@ export function PostCard({
 }: PostCardProps) {
   const { tokens } = useTheme();
   const router = useRouter();
+  const autor = identidade(post.authorId, post.authorName);
 
   const openPost = () =>
     router.push({ pathname: '/groups/[id]/post/[postId]', params: { id: post.groupId, postId: post.id } });
@@ -45,7 +57,7 @@ export function PostCard({
   const openAuthor = () => router.push({ pathname: '/u/[id]', params: { id: post.authorId } });
 
   const share = () =>
-    Share.share({ message: `${post.authorName} no Markee:\n\n${post.content}` });
+    Share.share({ message: `${autor.nome} no Markee:\n\n${post.content}` });
 
   const truncated = post.content.length > PREVIEW_CHARS;
 
@@ -66,14 +78,14 @@ export function PostCard({
             <Image source={{ uri: post.authorAvatar }} className="h-9 w-9 rounded-full" />
           ) : (
             <View className="h-9 w-9 items-center justify-center rounded-full bg-subtle-light dark:bg-subtle-dark">
-              <AppText variant="small">{post.authorName.charAt(0).toUpperCase()}</AppText>
+              <AppText variant="small">{autor.nome.charAt(0).toUpperCase()}</AppText>
             </View>
           )}
         </Pressable>
 
         <Pressable onPress={openAuthor} className="flex-1">
-          <AppText variant="bodyEmphasis" numberOfLines={1}>
-            {post.authorName}
+          <AppText variant="bodyEmphasis" numberOfLines={1} style={{ color: autor.cor }}>
+            {autor.nome}
           </AppText>
           <AppText variant="small">
             {formatRelativeDate(new Date(post.createdAt).getTime())}

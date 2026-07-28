@@ -16,6 +16,7 @@ import { AppText } from '@/components/AppText';
 import { EmptyState } from '@/components/EmptyState';
 import { useSession } from '@/features/auth/hooks/useSession';
 import { useMessages, useSendMessage } from '@/features/chat/hooks/useChat';
+import { useGroupIdentity } from '@/features/groups/hooks/useGroupIdentity';
 import { useMyPermissions, useRooms } from '@/features/groups/hooks/useGroups';
 import { Permission, hasPermission } from '@/features/groups/permissions';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
@@ -32,6 +33,7 @@ export default function RoomScreen() {
   const { data: rooms } = useRooms(id);
   const { data: messages, isLoading } = useMessages(roomId);
   const { data: perms } = useMyPermissions(id);
+  const identidade = useGroupIdentity(id);
   const sendMessage = useSendMessage(roomId ?? '');
 
   const [draft, setDraft] = useState('');
@@ -77,19 +79,22 @@ export default function RoomScreen() {
           }}
           renderItem={({ item }) => {
             const isMine = item.authorId === user?.id;
+            // O nome de reserva é o que veio no join da mensagem: quem saiu do
+            // grupo não está mais na lista de membros, mas as mensagens ficam.
+            const quem = identidade(item.authorId, item.authorName);
             return (
               <View className={`mb-3 flex-row gap-2.5 ${isMine ? 'flex-row-reverse' : ''}`}>
                 {item.authorAvatar ? (
                   <Image source={{ uri: item.authorAvatar }} className="h-8 w-8 rounded-full" />
                 ) : (
                   <View className="h-8 w-8 items-center justify-center rounded-full bg-subtle-light dark:bg-subtle-dark">
-                    <AppText variant="small">{item.authorName.charAt(0).toUpperCase()}</AppText>
+                    <AppText variant="small">{quem.nome.charAt(0).toUpperCase()}</AppText>
                   </View>
                 )}
                 <View className={`max-w-[76%] ${isMine ? 'items-end' : 'items-start'}`}>
                   {!isMine ? (
-                    <AppText variant="small" className="mb-0.5 px-1">
-                      {item.authorName}
+                    <AppText variant="small" className="mb-0.5 px-1" style={{ color: quem.cor }}>
+                      {quem.nome}
                     </AppText>
                   ) : null}
                   <View

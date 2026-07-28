@@ -72,8 +72,21 @@ export function NoteListItem({
           // lista virava um bloco só, sem separação entre uma nota e outra.
           className="rounded-2xl border border-hairline-light bg-surface-light dark:border-hairline-dark dark:bg-surface-dark"
         >
+          {/* A capa é uma faixa fina no topo do cartão, não um fundo colorido:
+              o texto da nota continua sobre o mesmo fundo de sempre e a cor não
+              precisa de contraste nenhum para o cartão seguir legível. */}
+          {note.coverColor ? (
+            <View
+              style={{ backgroundColor: note.coverColor }}
+              className="h-1.5 rounded-t-2xl"
+            />
+          ) : null}
+
           <Pressable onPress={onPress} className="px-4 py-3.5 active:opacity-60">
             <View className="flex-row items-start gap-2">
+              {note.emoji ? (
+                <AppText style={{ fontSize: 19, lineHeight: 24 }}>{note.emoji}</AppText>
+              ) : null}
               <View className="flex-1">
                 <AppText
                   variant="bodyEmphasis"

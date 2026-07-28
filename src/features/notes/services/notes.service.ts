@@ -12,6 +12,8 @@ type NoteRow = {
   content: string;
   folder_id: string | null;
   category_id: string | null;
+  cover_color: string | null;
+  emoji: string | null;
   is_favorite: number;
   is_pinned: number;
   is_deleted: number;
@@ -27,6 +29,8 @@ function mapNote(row: NoteRow): Note {
     content: row.content,
     folderId: row.folder_id,
     categoryId: row.category_id,
+    coverColor: row.cover_color,
+    emoji: row.emoji,
     isFavorite: row.is_favorite === 1,
     isPinned: row.is_pinned === 1,
     isDeleted: row.is_deleted === 1,
@@ -167,6 +171,8 @@ export async function createNote(
     content,
     folderId: initial.folderId ?? null,
     categoryId: initial.categoryId ?? null,
+    coverColor: null,
+    emoji: null,
     isFavorite: false,
     isPinned: false,
     isDeleted: false,
@@ -178,7 +184,10 @@ export async function createNote(
 }
 
 export type NotePatch = Partial<
-  Pick<Note, 'title' | 'content' | 'folderId' | 'categoryId' | 'isFavorite' | 'isPinned'>
+  Pick<
+    Note,
+    'title' | 'content' | 'folderId' | 'categoryId' | 'coverColor' | 'emoji' | 'isFavorite' | 'isPinned'
+  >
 >;
 
 export async function updateNote(id: string, patch: NotePatch): Promise<NoteWithTags> {
@@ -202,6 +211,16 @@ export async function updateNote(id: string, patch: NotePatch): Promise<NoteWith
   if (patch.folderId !== undefined) {
     sets.push('folder_id = ?');
     params.push(patch.folderId);
+  }
+  // Nulo aqui quer dizer "tirar a capa" / "tirar o emoji", e por isso passa
+  // direto em vez de virar `|| null`: o `undefined` é que significa não mexer.
+  if (patch.coverColor !== undefined) {
+    sets.push('cover_color = ?');
+    params.push(patch.coverColor);
+  }
+  if (patch.emoji !== undefined) {
+    sets.push('emoji = ?');
+    params.push(patch.emoji);
   }
   if (patch.isFavorite !== undefined) {
     sets.push('is_favorite = ?');

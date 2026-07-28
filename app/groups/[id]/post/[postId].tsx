@@ -29,6 +29,7 @@ import {
   useVotePoll,
 } from '@/features/feed/hooks/useFeed';
 import type { PostComment } from '@/features/feed/services/feed.service';
+import { useGroupIdentity, type IdentidadeNoGrupo } from '@/features/groups/hooks/useGroupIdentity';
 import { useMyPermissions } from '@/features/groups/hooks/useGroups';
 import { Permission, hasPermission } from '@/features/groups/permissions';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
@@ -47,6 +48,7 @@ export default function PostDetailScreen() {
   const { data: post, isLoading } = usePost(postId);
   const { data: comments } = useComments(postId);
   const { data: perms } = useMyPermissions(id);
+  const identidade = useGroupIdentity(id);
   const toggleLike = useToggleLike(id ?? '');
   const votePoll = useVotePoll(id ?? '');
   const addComment = useAddComment(id ?? '', postId ?? '');
@@ -87,6 +89,10 @@ export default function PostDetailScreen() {
     );
   }
 
+  // Depois das guardas de carregando/não encontrado, para não resolver a
+  // identidade de um post que talvez nem exista.
+  const autor = identidade(post.authorId, post.authorName);
+
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-canvas-light dark:bg-canvas-dark"
@@ -97,7 +103,7 @@ export default function PostDetailScreen() {
         showMenu={false}
         onBackPress={() => router.back()}
         rightIcon="share-2"
-        onRightPress={() => Share.share({ message: `${post.authorName} no Markee:\n\n${post.content}` })}
+        onRightPress={() => Share.share({ message: `${autor.nome} no Markee:\n\n${post.content}` })}
       />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
@@ -119,11 +125,13 @@ export default function PostDetailScreen() {
               <Image source={{ uri: post.authorAvatar }} className="h-11 w-11 rounded-full" />
             ) : (
               <View className="h-11 w-11 items-center justify-center rounded-full bg-subtle-light dark:bg-subtle-dark">
-                <AppText variant="bodyEmphasis">{post.authorName.charAt(0).toUpperCase()}</AppText>
+                <AppText variant="bodyEmphasis">{autor.nome.charAt(0).toUpperCase()}</AppText>
               </View>
             )}
             <View className="flex-1">
-              <AppText variant="bodyEmphasis">{post.authorName}</AppText>
+              <AppText variant="bodyEmphasis" style={{ color: autor.cor }}>
+                {autor.nome}
+              </AppText>
               <AppText variant="small">
                 {formatRelativeDate(new Date(post.createdAt).getTime())}
                 {post.editedAt ? ' · editado' : ''}
@@ -182,6 +190,7 @@ export default function PostDetailScreen() {
                 depth={0}
                 currentUserId={user?.id}
                 canModerate={canModerate}
+                identidade={identidade}
                 onReply={setReplyTo}
                 onDelete={(commentId) => deleteComment.mutate(commentId)}
               />
@@ -198,7 +207,7 @@ export default function PostDetailScreen() {
           <View className="mb-1.5 flex-row items-center gap-2 px-1">
             <Feather name="corner-down-right" size={13} color={tokens.accent} />
             <AppText variant="small" className="flex-1 text-accent">
-              Respondendo {replyTo.authorName}
+              Respondendo {identidade(replyTo.authorId, replyTo.authorName).nome}
             </AppText>
             <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
               <Feather name="x" size={14} color={tokens.muted} />
@@ -235,6 +244,7 @@ function CommentRow({
   depth,
   currentUserId,
   canModerate,
+  identidade,
   onReply,
   onDelete,
 }: {
@@ -242,12 +252,16 @@ function CommentRow({
   depth: number;
   currentUserId: string | undefined;
   canModerate: boolean;
+  /** Vem por prop, e não de um useGroupIdentity aqui dentro, porque uma thread
+      tem dezenas de comentários: cada linha assinaria a consulta de novo. */
+  identidade: (userId: string, nomeDeReserva?: string) => IdentidadeNoGrupo;
   onReply: (comment: PostComment) => void;
   onDelete: (commentId: string) => void;
 }) {
   const { tokens } = useTheme();
   const router = useRouter();
   const canDelete = canModerate || comment.authorId === currentUserId;
+  const quem = identidade(comment.authorId, comment.authorName);
 
   return (
     <View style={{ marginLeft: depth > 0 ? 28 : 0 }}>
@@ -257,15 +271,15 @@ function CommentRow({
             <Image source={{ uri: comment.authorAvatar }} className="h-8 w-8 rounded-full" />
           ) : (
             <View className="h-8 w-8 items-center justify-center rounded-full bg-subtle-light dark:bg-subtle-dark">
-              <AppText variant="small">{comment.authorName.charAt(0).toUpperCase()}</AppText>
+              <AppText variant="small">{quem.nome.charAt(0).toUpperCase()}</AppText>
             </View>
           )}
         </Pressable>
 
         <View className="flex-1">
           <View className="flex-row items-baseline gap-2">
-            <AppText variant="small" className="text-ink-light dark:text-ink-dark">
-              {comment.authorName}
+            <AppText variant="small" style={{ color: quem.cor }}>
+              {quem.nome}
             </AppText>
             <AppText variant="small">{formatRelativeDate(new Date(comment.createdAt).getTime())}</AppText>
           </View>
@@ -297,6 +311,7 @@ function CommentRow({
           depth={depth + 1}
           currentUserId={currentUserId}
           canModerate={canModerate}
+          identidade={identidade}
           onReply={onReply}
           onDelete={onDelete}
         />

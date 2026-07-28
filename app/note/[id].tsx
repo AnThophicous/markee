@@ -12,6 +12,7 @@ import { MarkdownPreview } from '@/features/editor/components/MarkdownPreview';
 import { FolderPickerSheet } from '@/features/folders/components/FolderPickerSheet';
 import { CategorySheet } from '@/features/categories/components/CategorySheet';
 import { NoteActionsSheet } from '@/features/notes/components/NoteActionsSheet';
+import { NoteLookSheet } from '@/features/notes/components/NoteLookSheet';
 import { useNote } from '@/features/notes/hooks/useNote';
 import { useSoftDeleteNote, useUpdateNote } from '@/features/notes/hooks/useNoteMutations';
 import { ReminderSheet } from '@/features/reminders/components/ReminderSheet';
@@ -34,6 +35,7 @@ export default function NoteEditorScreen() {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [folderPickerVisible, setFolderPickerVisible] = useState(false);
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
+  const [lookVisible, setLookVisible] = useState(false);
   const [reminderVisible, setReminderVisible] = useState(false);
   const [aiVisible, setAiVisible] = useState(false);
 
@@ -125,14 +127,33 @@ export default function NoteEditorScreen() {
         <IconButton name="more-horizontal" onPress={() => setActionsVisible(true)} />
       </View>
 
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Título"
-        placeholderTextColor={tokens.muted}
-        returnKeyType="next"
-        className="px-5 pb-1 pt-1 text-[24px] font-bold leading-[30px] text-ink-light dark:text-ink-dark"
-      />
+      {/* A capa fica logo abaixo da barra e acima do título — é o mesmo lugar
+          onde ela aparece no cartão da lista, então a escolha é vista do jeito
+          que vai ficar. */}
+      {note.coverColor ? (
+        <View style={{ backgroundColor: note.coverColor }} className="mx-5 mb-2 h-1.5 rounded-full" />
+      ) : null}
+
+      <View className="flex-row items-center gap-2 px-5 pb-1 pt-1">
+        {/* Tocar no emoji abre o painel: é o caminho mais curto para trocá-lo, e
+            quem já escolheu um não precisa procurar de novo no menu. */}
+        <Pressable onPress={() => setLookVisible(true)} hitSlop={8}>
+          {note.emoji ? (
+            <AppText style={{ fontSize: 26 }}>{note.emoji}</AppText>
+          ) : (
+            <Feather name="smile" size={20} color={tokens.muted} />
+          )}
+        </Pressable>
+
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Título"
+          placeholderTextColor={tokens.muted}
+          returnKeyType="next"
+          className="flex-1 text-[24px] font-bold leading-[30px] text-ink-light dark:text-ink-dark"
+        />
+      </View>
 
       {mode === 'read' ? (
         <ScrollView
@@ -166,6 +187,7 @@ export default function NoteEditorScreen() {
         onTogglePin={() => updateNote.mutate({ id, patch: { isPinned: !note.isPinned } })}
         onMoveToFolder={() => setFolderPickerVisible(true)}
         onSetCategory={() => setCategoryPickerVisible(true)}
+        onSetLook={() => setLookVisible(true)}
         onSetReminder={() => setReminderVisible(true)}
         onExport={() => exportNoteAsMarkdown(title, content)}
         onDelete={handleDelete}
@@ -184,6 +206,14 @@ export default function NoteEditorScreen() {
         modo="escolher"
         selecionada={note.categoryId}
         onSelecionar={(categoryId) => updateNote.mutate({ id, patch: { categoryId } })}
+      />
+
+      <NoteLookSheet
+        visible={lookVisible}
+        onClose={() => setLookVisible(false)}
+        corAtual={note.coverColor}
+        emojiAtual={note.emoji}
+        onMudar={(patch) => updateNote.mutate({ id, patch })}
       />
 
       <ReminderSheet

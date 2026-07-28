@@ -16,6 +16,7 @@ import {
   listMyGroups,
   listRoles,
   listRooms,
+  setNickname,
   updateGroup,
   updateRolePermissions,
 } from '../services/groups.service';
@@ -161,6 +162,17 @@ export function useAssignRole(groupId: string) {
   return useMutation({
     mutationFn: ({ userId, roleId }: { userId: string; roleId: string | null }) =>
       assignRole(groupId, userId, roleId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: groupKeys.members(groupId) }),
+  });
+}
+
+export function useSetNickname(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (nickname: string) => setNickname(groupId, nickname),
+    // Invalida os membros porque é de lá que sai o nome exibido no chat, nos
+    // posts e na lista — sem isso o apelido novo só apareceria na próxima
+    // abertura do grupo, e pareceria que a troca não pegou.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: groupKeys.members(groupId) }),
   });
 }

@@ -17,6 +17,7 @@ import {
   useVotePoll,
 } from '@/features/feed/hooks/useFeed';
 import type { NewPost } from '@/features/feed/services/feed.service';
+import { useGroupIdentity } from '@/features/groups/hooks/useGroupIdentity';
 import { useMyPermissions } from '@/features/groups/hooks/useGroups';
 import { Permission, hasPermission } from '@/features/groups/permissions';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
@@ -32,6 +33,7 @@ export default function FeedScreen() {
 
   const { data: posts, isLoading, refetch, isRefetching } = usePosts(id);
   const { data: perms } = useMyPermissions(id);
+  const identidade = useGroupIdentity(id);
   const createPost = useCreatePost(id ?? '');
   const editPost = useEditPost(id ?? '');
   const toggleLike = useToggleLike(id ?? '');
@@ -97,6 +99,7 @@ export default function FeedScreen() {
               post={item}
               canModerate={canModerate}
               isAuthor={item.authorId === user?.id}
+              identidade={identidade}
               onToggleLike={() => toggleLike.mutate({ postId: item.id, liked: item.likedByMe })}
               onOpenComments={() =>
                 router.push({ pathname: '/groups/[id]/post/[postId]', params: { id: id ?? '', postId: item.id } })

@@ -57,6 +57,7 @@
     "babel-preset-expo": "^57.0.4",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^57.0.0",
+    "pg": "^8.22.0",
     "typescript": "~6.0.3"
   },
   "private": true

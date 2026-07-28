@@ -96,3 +96,24 @@ INSERT INTO categories (id, name, color, icon, position, created_at) VALUES
   ('cat-trabalhos', 'Trabalhos', '#1baf7a', 'briefcase',  2, strftime('%s','now') * 1000),
   ('cat-pessoal',   'Pessoal',   '#4a3aa7', 'heart',      3, strftime('%s','now') * 1000);
 `;
+
+/**
+ * Capa e emoji da nota.
+ *
+ * A categoria já diz a que assunto a nota pertence; isto é outra coisa — é a
+ * nota ter cara própria. Numa lista de trinta notas de "Aulas", todas com a
+ * mesma etiqueta azul, o que faz achar a certa é o 🧪 na frente de uma e o 📐 na
+ * frente da outra.
+ *
+ * As duas colunas nascem nulas, e nulo quer dizer "como sempre foi". Nada muda
+ * de aparência para quem já usa o app até a pessoa escolher.
+ *
+ * Não há CHECK no formato da cor. É banco local, no aparelho de quem escreveu —
+ * validar aqui protegeria a pessoa dela mesma, e o custo de uma migração que
+ * falha em campo é o app abrir com o banco pela metade. A interface só oferece
+ * cores de uma lista fixa.
+ */
+export const MIGRATION_003_NOTE_LOOK = `
+ALTER TABLE notes ADD COLUMN cover_color TEXT;
+ALTER TABLE notes ADD COLUMN emoji TEXT;
+`;

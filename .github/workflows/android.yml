@@ -84,11 +84,13 @@ jobs:
       - name: Testes que rodam sem aparelho
         # QR (conferido contra a norma), criptografia ponta a ponta, calculadora
         # (que avalia texto do modelo), laço de ferramentas, registro de quedas,
-        # conversão markdown↔blocos e geometria dos gráficos.
+        # conversão markdown↔blocos, geometria dos gráficos, migrações do banco
+        # local e legibilidade das cores de cargo.
         #
-        # Os dois últimos são os mais importantes para o conteúdo: a conversão
-        # instável faria a nota mudar sozinha a cada abertura, e um NaN na
-        # geometria faz o gráfico sumir sem erro nenhum.
+        # Os que mais pegam defeito silencioso: a conversão instável faria a nota
+        # mudar sozinha a cada abertura; um NaN na geometria faz o gráfico sumir
+        # sem erro nenhum; uma migração quebrada abre o app com o banco pela
+        # metade; e uma cor de cargo sem contraste some no fundo sem avisar.
         #
         # Falhar aqui para o build antes de gastar 15 minutos compilando.
         run: |
@@ -100,6 +102,7 @@ jobs:
           node scripts/blocks-test.js
           node scripts/chart-test.js
           node scripts/db-test.js
+          node scripts/role-color-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos

@@ -5,6 +5,7 @@ import { AppText } from '@/components/AppText';
 import { GLOW_SHADOW, ThemeBanner } from '@/components/ThemeBanner';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { Profile } from '../services/profile.service';
+import { StatusBadge } from './StatusBadge';
 
 type ProfileHeaderProps = {
   profile: Profile;
@@ -12,12 +13,19 @@ type ProfileHeaderProps = {
   /** Só aparece no próprio perfil. */
   onPressAvatar?: () => void;
   onPressBanner?: () => void;
+  onPressStatus?: () => void;
 };
 
 const BANNER_HEIGHT = 132;
 const AVATAR = 92;
 
-export function ProfileHeader({ profile, isPro, onPressAvatar, onPressBanner }: ProfileHeaderProps) {
+export function ProfileHeader({
+  profile,
+  isPro,
+  onPressAvatar,
+  onPressBanner,
+  onPressStatus,
+}: ProfileHeaderProps) {
   const { tokens } = useTheme();
   const glow = profile.theme.effect === 'glow';
   const editable = Boolean(onPressAvatar);
@@ -82,6 +90,9 @@ export function ProfileHeader({ profile, isPro, onPressAvatar, onPressBanner }: 
             {profile.headline}
           </AppText>
         ) : null}
+
+        <StatusBadge profile={profile} onPress={onPressStatus} />
+
 
         {profile.bio ? (
           <AppText variant="body" className="mt-2">

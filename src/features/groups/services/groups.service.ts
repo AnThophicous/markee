@@ -34,6 +34,10 @@ export type GroupMember = {
   avatarUrl: string | null;
   roleName: string | null;
   roleColor: string | null;
+  /** Recado do momento, para aparecer embaixo do nome. Ver 0017. */
+  statusText: string | null;
+  statusEmoji: string | null;
+  statusUntil: string | null;
 };
 
 export type Room = {
@@ -239,7 +243,11 @@ export async function deleteRole(roleId: string): Promise<void> {
 export async function listMembers(groupId: string): Promise<GroupMember[]> {
   const { data, error } = await supabase
     .from('group_members')
-    .select('group_id, user_id, role_id, nickname, profiles(display_name, avatar_url), group_roles(name, color)')
+    .select(
+      'group_id, user_id, role_id, nickname, ' +
+        'profiles(display_name, avatar_url, status_text, status_emoji, status_until), ' +
+        'group_roles(name, color)'
+    )
     .eq('group_id', groupId);
 
   if (error) throw new Error(error.message);
@@ -254,8 +262,28 @@ export async function listMembers(groupId: string): Promise<GroupMember[]> {
     avatarUrl: row.profiles?.avatar_url ?? null,
     roleName: row.group_roles?.name ?? null,
     roleColor: row.group_roles?.color ?? null,
+    statusText: row.profiles?.status_text ?? null,
+    statusEmoji: row.profiles?.status_emoji ?? null,
+    statusUntil: row.profiles?.status_until ?? null,
   }));
   /* eslint-enable @typescript-eslint/no-explicit-any */
+}
+
+/**
+ * Troca o próprio apelido no grupo.
+ *
+ * Vai por função no servidor, e não por UPDATE direto, porque liberar UPDATE na
+ * linha de `group_members` deixaria qualquer pessoa trocar também o próprio
+ * `role_id` — isto é, se promover a administradora do grupo. A função mexe só
+ * no apelido. Ver 0017_status_and_nickname.sql.
+ */
+export async function setNickname(groupId: string, nickname: string): Promise<void> {
+  const { error } = await supabase.rpc('set_nickname', {
+    p_group_id: groupId,
+    p_nickname: nickname,
+  });
+
+  if (error) throw new Error(error.message);
 }
 
 export async function assignRole(groupId: string, userId: string, roleId: string | null): Promise<void> {

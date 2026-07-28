@@ -13,6 +13,7 @@ import { signOut } from '@/features/auth/services/auth.service';
 import { useIsPro, useMyUsage } from '@/features/billing/hooks/useMyUsage';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
+import { StatusSheet } from '@/features/profile/components/StatusSheet';
 import { useProfile, useUpdateProfile, useUploadProfileImage } from '@/features/profile/hooks/useProfile';
 import { useBottomInset } from '@/hooks/useBottomInset';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -38,6 +39,7 @@ export default function ProfileScreen() {
   const [headline, setHeadline] = useState('');
   const [bio, setBio] = useState('');
   const [themeVisible, setThemeVisible] = useState(false);
+  const [statusVisible, setStatusVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -138,6 +140,7 @@ export default function ProfileScreen() {
           isPro={isPro}
           onPressAvatar={() => pick('avatar')}
           onPressBanner={() => pick('banner')}
+          onPressStatus={() => setStatusVisible(true)}
         />
 
         <View className="gap-3 px-5">
@@ -165,8 +168,12 @@ export default function ProfileScreen() {
                 />
               </Field>
             </View>
+            {/* Chamava-se STATUS. Passou a "frase" quando o recado de verdade
+                chegou: são coisas diferentes — a frase é fixa e fica abaixo do
+                nome, o recado é do momento e vence sozinho. Dois campos com o
+                mesmo nome na mesma tela ninguém entende. */}
             <View className="flex-[1.4]">
-              <Field label="STATUS">
+              <Field label="FRASE FIXA">
                 <TextInput
                   value={headline}
                   onChangeText={setHeadline}
@@ -257,6 +264,25 @@ export default function ProfileScreen() {
           <Button label="Sair da conta" variant="danger" onPress={handleSignOut} />
         </View>
       </ScrollView>
+
+      {/* Salva sozinho, sem passar pelo botão "Salvar" lá embaixo: o recado é
+          de uso rápido, e obrigar a rolar a tela até o botão depois de escolher
+          um emoji faria pouca gente usar. */}
+      <StatusSheet
+        visible={statusVisible}
+        onClose={() => setStatusVisible(false)}
+        profile={profile}
+        salvando={updateProfile.isPending}
+        onSalvar={(patch) => {
+          setError(null);
+          updateProfile.mutate(patch, {
+            onError: (e) => {
+              const message = e instanceof Error ? e.message : 'Falha ao salvar o recado.';
+              setError(describeProError(message) ?? message);
+            },
+          });
+        }}
+      />
 
       <ThemePickerSheet
         visible={themeVisible}

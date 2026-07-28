@@ -13,6 +13,10 @@ export type Note = {
   folderId: string | null;
   /** Categoria da nota. Nula enquanto ninguém escolheu uma. */
   categoryId: string | null;
+  /** Cor da faixa no topo da nota e da borda no cartão. Nula = sem capa. */
+  coverColor: string | null;
+  /** Um emoji que vira o rosto da nota na lista. Nulo = sem emoji. */
+  emoji: string | null;
   isFavorite: boolean;
   isPinned: boolean;
   isDeleted: boolean;

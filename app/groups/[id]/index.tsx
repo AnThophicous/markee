@@ -16,6 +16,7 @@ import { useIsPro } from '@/features/billing/hooks/useMyUsage';
 import { EventSheet } from '@/features/groups/components/EventSheet';
 import { GroupBanner } from '@/features/groups/components/GroupBanner';
 import { useCreateEvent, useDeleteEvent, useGroupEvents } from '@/features/groups/hooks/useGroupEvents';
+import { useGroupIdentity } from '@/features/groups/hooks/useGroupIdentity';
 import {
   useCreateRoom,
   useDeleteGroup,
@@ -44,6 +45,7 @@ export default function GroupDetailScreen() {
   const { data: group, isLoading } = useGroup(id);
   const { data: rooms } = useRooms(id);
   const { data: members } = useMembers(id);
+  const identidade = useGroupIdentity(id);
   const { data: perms } = useMyPermissions(id);
   const { data: events } = useGroupEvents(id);
   const createRoom = useCreateRoom(id ?? '');
@@ -324,33 +326,46 @@ export default function GroupDetailScreen() {
             MEMBROS · {memberCount}
           </AppText>
           <View className="overflow-hidden rounded-2xl bg-surface-light dark:bg-surface-dark">
-            {(members ?? []).slice(0, 6).map((member, index, visible) => (
-              <View key={member.userId}>
-                <Pressable
-                  onPress={() => router.push({ pathname: '/u/[id]', params: { id: member.userId } })}
-                  className="flex-row items-center gap-3 px-4 py-3 active:bg-subtle-light dark:active:bg-subtle-dark"
-                >
-                  {member.avatarUrl ? (
-                    <Image source={{ uri: member.avatarUrl }} className="h-9 w-9 rounded-full" />
-                  ) : (
-                    <View className="h-9 w-9 items-center justify-center rounded-full bg-subtle-light dark:bg-subtle-dark">
-                      <AppText variant="small">{member.displayName.charAt(0).toUpperCase()}</AppText>
-                    </View>
-                  )}
-                  <AppText variant="body" className="flex-1" numberOfLines={1}>
-                    {member.nickname ?? member.displayName}
-                  </AppText>
-                  {member.roleName ? (
-                    <View className="rounded-full bg-subtle-light px-2 py-1 dark:bg-subtle-dark">
-                      <AppText variant="small" style={{ color: member.roleColor ?? tokens.muted }}>
-                        {member.roleName}
+            {(members ?? []).slice(0, 6).map((member, index, visible) => {
+              const quem = identidade(member.userId, member.displayName);
+              return (
+                <View key={member.userId}>
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/u/[id]', params: { id: member.userId } })}
+                    className="flex-row items-center gap-3 px-4 py-3 active:bg-subtle-light dark:active:bg-subtle-dark"
+                  >
+                    {member.avatarUrl ? (
+                      <Image source={{ uri: member.avatarUrl }} className="h-9 w-9 rounded-full" />
+                    ) : (
+                      <View className="h-9 w-9 items-center justify-center rounded-full bg-subtle-light dark:bg-subtle-dark">
+                        <AppText variant="small">{quem.nome.charAt(0).toUpperCase()}</AppText>
+                      </View>
+                    )}
+
+                    <View className="flex-1">
+                      <AppText variant="body" numberOfLines={1} style={{ color: quem.cor }}>
+                        {quem.nome}
                       </AppText>
+                      {quem.recado ? (
+                        <AppText variant="small" numberOfLines={1} style={{ color: tokens.muted }}>
+                          {quem.recado.emoji ? `${quem.recado.emoji} ` : ''}
+                          {quem.recado.texto ?? ''}
+                        </AppText>
+                      ) : null}
                     </View>
-                  ) : null}
-                </Pressable>
-                {index < visible.length - 1 ? <Divider className="ml-4" /> : null}
-              </View>
-            ))}
+
+                    {quem.cargo ? (
+                      <View className="rounded-full bg-subtle-light px-2 py-1 dark:bg-subtle-dark">
+                        <AppText variant="small" style={{ color: quem.cor }}>
+                          {quem.cargo}
+                        </AppText>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                  {index < visible.length - 1 ? <Divider className="ml-4" /> : null}
+                </View>
+              );
+            })}
           </View>
 
           {memberCount > 6 ? (

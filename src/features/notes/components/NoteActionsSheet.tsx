@@ -15,6 +15,7 @@ type NoteActionsSheetProps = {
   onTogglePin: () => void;
   onMoveToFolder: () => void;
   onSetCategory: () => void;
+  onSetLook: () => void;
   onSetReminder: () => void;
   onExport: () => void;
   onDelete: () => void;
@@ -28,6 +29,7 @@ export function NoteActionsSheet({
   onTogglePin,
   onMoveToFolder,
   onSetCategory,
+  onSetLook,
   onSetReminder,
   onExport,
   onDelete,
@@ -61,6 +63,8 @@ export function NoteActionsSheet({
       {row('bookmark', note.isPinned ? 'Desafixar nota' : 'Fixar nota', onTogglePin)}
       <Divider />
       {row('tag', 'Categoria', onSetCategory)}
+      <Divider />
+      {row('smile', 'Emoji e capa', onSetLook)}
       <Divider />
       {row('folder', 'Mover para pasta', onMoveToFolder)}
       <Divider />
