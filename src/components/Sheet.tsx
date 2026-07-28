@@ -5,6 +5,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, {
   Easing,
   runOnJS,
+  useAnimatedKeyboard,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -33,6 +34,25 @@ export function Sheet({ visible, onClose, edge = 'bottom', children, widthClassN
   const offscreen = edge === 'bottom' ? height : -width;
   const translate = useSharedValue(offscreen);
   const backdrop = useSharedValue(0);
+
+  /**
+   * O painel sobe junto com o teclado.
+   *
+   * Sem isto, oito painéis do app tinham campo de texto invisível: o painel
+   * fica colado no rodapé (`bottom: 0`) e o teclado subia por cima dele. Dava
+   * para digitar sem ver o que estava sendo digitado — apelido, recado, nome de
+   * categoria, comentário.
+   *
+   * O `Modal` do React Native não encolhe com o teclado no Android quando é
+   * `statusBarTranslucent`, que é o nosso caso. Então o ajuste do sistema
+   * (`adjustResize`) não alcança aqui e o painel precisa se mover por conta.
+   *
+   * `useAnimatedKeyboard` roda na thread de animação e acompanha a altura
+   * quadro a quadro, então o painel sobe COLADO no teclado. Ouvir o evento de
+   * teclado no JavaScript daria um salto no fim da animação do sistema, que é
+   * o que faz painel parecer que "pula".
+   */
+  const teclado = useAnimatedKeyboard();
 
   useEffect(() => {
     if (visible) {
@@ -64,7 +84,24 @@ export function Sheet({ visible, onClose, edge = 'bottom', children, widthClassN
     });
 
   const panelStyle = useAnimatedStyle(() => ({
-    transform: edge === 'bottom' ? [{ translateY: translate.value }] : [{ translateX: translate.value }],
+    transform:
+      edge === 'bottom'
+        ? // A subida do teclado SOMA com a entrada e com o arrasto: os três
+          // mexem no mesmo eixo, e tratá-los em transformações separadas faria
+          // um cancelar o outro.
+          [{ translateY: translate.value - teclado.height.value }]
+        : [{ translateX: translate.value }],
+  }));
+
+  /**
+   * A folga de baixo sai quando o teclado entra.
+   *
+   * `insets.bottom` reserva espaço para a barra de gestos do sistema. Com o
+   * teclado aberto essa barra não está lá — manter a folga empurraria o painel
+   * mais alto do que o necessário e abriria uma faixa vazia sobre o teclado.
+   */
+  const folgaInferior = useAnimatedStyle(() => ({
+    paddingBottom: teclado.height.value > 0 ? 16 : insets.bottom + 24,
   }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
 
@@ -91,7 +128,7 @@ export function Sheet({ visible, onClose, edge = 'bottom', children, widthClassN
             )}
             style={[
               panelStyle,
-              edge === 'bottom' ? { paddingBottom: insets.bottom + 24 } : { paddingTop: insets.top + 20 },
+              edge === 'bottom' ? folgaInferior : { paddingTop: insets.top + 20 },
             ]}
           >
             {edge === 'bottom' ? (

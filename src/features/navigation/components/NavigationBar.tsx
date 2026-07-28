@@ -5,6 +5,7 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import Animated, {
   interpolateColor,
+  useAnimatedKeyboard,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -111,6 +112,19 @@ export function NavigationBar() {
   const larguraAba = width / ABAS.length;
   const larguraPilula = Math.min(64, larguraAba - 24);
 
+  /**
+   * Com o teclado aberto, a barra sai.
+   *
+   * O Android encolhe a janela quando o teclado sobe (`adjustResize`), então a
+   * barra passaria a flutuar logo acima do teclado — 64 pixels de navegação
+   * ocupando espaço bem na hora em que a pessoa precisa ver o que digita, e
+   * oferecendo trocar de aba no meio de uma frase.
+   *
+   * Encolher a altura em vez de deixar de desenhar: assim o conteúdo acima
+   * recupera o espaço com animação, em vez de dar um salto.
+   */
+  const teclado = useAnimatedKeyboard();
+
   const posicao = useSharedValue(Math.max(0, ativa));
 
   useEffect(() => {
@@ -119,6 +133,26 @@ export function NavigationBar() {
     // pegar a velocidade do movimento anterior em vez de recomeçar do zero.
     posicao.value = withSpring(ativa, mola.suave);
   }, [ativa, posicao]);
+
+  const barra = useAnimatedStyle(() => {
+    const escondida = teclado.height.value > 0;
+    return {
+      height: withTiming(escondida ? 0 : ALTURA, {
+        duration: duracao.curta,
+        easing: curva.padrao,
+      }),
+      opacity: withTiming(escondida ? 0 : 1, { duration: duracao.instante }),
+    };
+  });
+
+  // A faixa reservada para a barra de gestos do sistema também some: com o
+  // teclado aberto essa barra não está lá.
+  const folga = useAnimatedStyle(() => ({
+    paddingBottom: withTiming(teclado.height.value > 0 ? 0 : insets.bottom, {
+      duration: duracao.curta,
+      easing: curva.padrao,
+    }),
+  }));
 
   const pilula = useAnimatedStyle(() => ({
     transform: [
@@ -132,15 +166,17 @@ export function NavigationBar() {
   if (ativa < 0) return null;
 
   return (
-    <View
-      style={{
-        paddingBottom: insets.bottom,
-        backgroundColor: tokens.surfaceMid,
-        borderTopWidth: mode === 'light' ? 1 : 0,
-        borderTopColor: tokens.outlineVariant,
-      }}
+    <Animated.View
+      style={[
+        {
+          backgroundColor: tokens.surfaceMid,
+          borderTopWidth: mode === 'light' ? 1 : 0,
+          borderTopColor: tokens.outlineVariant,
+        },
+        folga,
+      ]}
     >
-      <View style={{ height: ALTURA, flexDirection: 'row' }}>
+      <Animated.View style={[{ flexDirection: 'row', overflow: 'hidden' }, barra]}>
         <Animated.View
           pointerEvents="none"
           style={[
@@ -170,8 +206,8 @@ export function NavigationBar() {
             }}
           />
         ))}
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   );
 }
 

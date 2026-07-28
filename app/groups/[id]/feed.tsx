@@ -18,6 +18,7 @@ import {
 } from '@/features/feed/hooks/useFeed';
 import type { NewPost } from '@/features/feed/services/feed.service';
 import { useGroupIdentity } from '@/features/groups/hooks/useGroupIdentity';
+import { useGroup } from '@/features/groups/hooks/useGroups';
 import { useMyPermissions } from '@/features/groups/hooks/useGroups';
 import { Permission, hasPermission } from '@/features/groups/permissions';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
@@ -32,6 +33,7 @@ export default function FeedScreen() {
   const bottom = useBottomInset(16);
 
   const { data: posts, isLoading, refetch, isRefetching } = usePosts(id);
+  const { data: group } = useGroup(id);
   const { data: perms } = useMyPermissions(id);
   const identidade = useGroupIdentity(id);
   const createPost = useCreatePost(id ?? '');
@@ -71,9 +73,13 @@ export default function FeedScreen() {
   return (
     <View className="flex-1 bg-canvas-light dark:bg-canvas-dark">
       <ScreenHeader
-        title="Feed"
+        // O nome do grupo, e não "Feed": quem entrou aqui sabe que é um mural,
+        // e o que ela precisa saber é EM QUAL grupo está.
+        title={group?.name ?? 'Mural'}
+        subtitle="toque para ver o grupo"
         showMenu={false}
         onBackPress={() => router.back()}
+        onTitlePress={() => router.push({ pathname: '/groups/[id]', params: { id: id ?? '' } })}
         rightIcon={canPost ? 'edit-3' : undefined}
         onRightPress={() => setComposerVisible(true)}
       />
