@@ -314,6 +314,67 @@ const bad = (n, d) => { fail++; console.log('  FAIL ' + n + (d ? ' -> ' + String
       console.log('  --   nenhuma conta pro para testar o outro lado; pulando');
     }
 
+    /* ------------------------------- o modelo de transcrição sai do plano */
+    const modelos = await c.query(
+      'select id, transcribe_model, transcribe_min_month from public.plans order by price_cents'
+    );
+    const porPlano = Object.fromEntries(
+      modelos.rows.map((r) => [r.id, { modelo: r.transcribe_model, min: r.transcribe_min_month }])
+    );
+
+    if (porPlano.free?.modelo && porPlano.pro?.modelo) ok('todo plano tem modelo de transcrição');
+    else bad('plano sem modelo', JSON.stringify(porPlano));
+
+    // O caro para quem paga. Se os dois fossem iguais, a conta grátis estaria
+    // consumindo o modelo de US$ 0,006/min e ninguém perceberia até a fatura.
+    if (porPlano.free?.modelo !== porPlano.pro?.modelo) {
+      ok('o plano pago usa um modelo diferente do grátis');
+    } else bad('grátis e pago usam o mesmo modelo', porPlano.free?.modelo);
+
+    if ((porPlano.pro?.min ?? 0) > (porPlano.free?.min ?? 0)) ok('o plano pago tem mais minutos');
+    else bad('minutos do pago não superam o grátis', JSON.stringify(porPlano));
+
+    // Cada conta enxerga o modelo do SEU plano, e não o de outro: é esta função
+    // que a borda consulta antes de chamar a OpenAI.
+    if (contaFree) {
+      await c.query(`select set_config('request.jwt.claims', $1, true)`, [
+        JSON.stringify({ sub: contaFree.id, role: 'authenticated' }),
+      ]);
+      const cfg = (await c.query('select * from public.my_transcribe_config()')).rows[0];
+      if (cfg?.model === porPlano.free.modelo) ok('conta free recebe o modelo do plano free');
+      else bad('modelo errado para conta free', JSON.stringify(cfg));
+      if (Number(cfg?.min_limit) === porPlano.free.min) ok('conta free recebe o limite do plano free');
+      else bad('limite errado para conta free', JSON.stringify(cfg));
+    }
+
+    if (contaPro) {
+      await c.query(`select set_config('request.jwt.claims', $1, true)`, [
+        JSON.stringify({ sub: contaPro.id, role: 'authenticated' }),
+      ]);
+      const cfg = (await c.query('select * from public.my_transcribe_config()')).rows[0];
+      if (cfg?.model === porPlano.pro.modelo) ok('conta pro recebe o modelo do plano pro');
+      else bad('modelo errado para conta pro', JSON.stringify(cfg));
+    }
+
+    // Estourar a cota tem de dar EXCEÇÃO, e não devolver zero em silêncio: a
+    // borda distingue os dois casos pela mensagem QUOTA_EXCEEDED.
+    if (contaFree) {
+      // Volta para a conta free ANTES de medir. O bloco acima deixou a sessão
+      // como a conta pro, e sem isto os minutos seriam conferidos contra o
+      // limite de 300 em vez do de 15 — o teste passava por engano e reclamava
+      // de um furo que não existia.
+      await c.query(`select set_config('request.jwt.claims', $1, true)`, [
+        JSON.stringify({ sub: contaFree.id, role: 'authenticated' }),
+      ]);
+
+      const t = await tentar(`select public.consume_quota('transcribe_minute', $1)`, [
+        (porPlano.free.min ?? 0) + 1,
+      ]);
+      if (!t.ok && t.erro.includes('QUOTA_EXCEEDED')) ok('pedir mais minutos que o plano é recusado');
+      else if (t.ok) bad('FURO: consumiu mais minutos do que o plano permite');
+      else bad('recusou por outro motivo', t.erro);
+    }
+
     // E o plano tem de sair da assinatura, nunca de um padrão generoso: uma
     // conta sem assinatura nenhuma precisa cair em free.
     const semAssinatura = await c.query(
