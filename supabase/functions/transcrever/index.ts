@@ -14,6 +14,17 @@
  *   3. A COTA. Debitar no cliente seria decoração: bastaria chamar esta função
  *      direto, ou a da OpenAI.
  *
+ * A CLASSIFICAÇÃO — separar matéria de conversa fiada — NÃO acontece aqui. Ela
+ * é uma chamada de texto, e texto já tem a sua função de borda, com o seu
+ * próprio débito por token e a sua própria escolha de modelo por plano.
+ * Fazer as duas coisas numa função só significaria duplicar essa lógica, e
+ * duplicar lógica de cobrança é como se acaba cobrando duas vezes por engano.
+ *
+ * O app transcreve os segmentos aqui, junta o texto, e manda UMA chamada à
+ * função `ai` com a transcrição inteira. Uma só, porque classificar pedaço por
+ * pedaço perderia o contexto: "isso cai na prova" só é tarefa se o modelo tiver
+ * visto a frase anterior.
+ *
  * SEGMENTOS. A função de borda tem 150s de parede no plano grátis do Supabase
  * (400s no pago), e uma aula de 50 minutos não cabe numa chamada só. Por isso o
  * app grava em pedaços de poucos minutos e manda um por vez: cada chamada leva

@@ -107,6 +107,7 @@ jobs:
           node scripts/theme-test.js
           node scripts/nav-test.js
           node scripts/carousel-test.js
+          node scripts/classify-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos
