@@ -343,8 +343,10 @@ const bad = (n, d) => { fail++; console.log('  FAIL ' + n + (d ? ' -> ' + String
       const cfg = (await c.query('select * from public.my_transcribe_config()')).rows[0];
       if (cfg?.model === porPlano.free.modelo) ok('conta free recebe o modelo do plano free');
       else bad('modelo errado para conta free', JSON.stringify(cfg));
-      if (Number(cfg?.min_limit) === porPlano.free.min) ok('conta free recebe o limite do plano free');
-      else bad('limite errado para conta free', JSON.stringify(cfg));
+      // O limite deixou de ser "minutos por mês" e virou saldo de crédito; o
+      // que a borda precisa saber agora é o PREÇO do minuto, para debitar.
+      if (Number(cfg?.usd_min) === 0.003) ok('conta free recebe o preço do minuto do modelo simples');
+      else bad('preço do minuto errado para conta free', JSON.stringify(cfg));
     }
 
     if (contaPro) {
@@ -354,6 +356,8 @@ const bad = (n, d) => { fail++; console.log('  FAIL ' + n + (d ? ' -> ' + String
       const cfg = (await c.query('select * from public.my_transcribe_config()')).rows[0];
       if (cfg?.model === porPlano.pro.modelo) ok('conta pro recebe o modelo do plano pro');
       else bad('modelo errado para conta pro', JSON.stringify(cfg));
+      if (Number(cfg?.usd_min) === 0.006) ok('conta pro recebe o preço do minuto do modelo bom');
+      else bad('preço do minuto errado para conta pro', JSON.stringify(cfg));
     }
 
     // Estourar a cota tem de dar EXCEÇÃO, e não devolver zero em silêncio: a
@@ -367,12 +371,23 @@ const bad = (n, d) => { fail++; console.log('  FAIL ' + n + (d ? ' -> ' + String
         JSON.stringify({ sub: contaFree.id, role: 'authenticated' }),
       ]);
 
-      const t = await tentar(`select public.consume_quota('transcribe_minute', $1)`, [
-        (porPlano.free.min ?? 0) + 1,
+      // Gastar mais do que o saldo tem de dar EXCEÇÃO, e não devolver zero em
+      // silêncio: a borda distingue os dois casos pela mensagem NO_CREDITS.
+      await c.query('select public.claim_monthly_credits()');
+      const saldo = (await c.query('select public.credit_balance(auth.uid()) as n')).rows[0].n;
+      const t = await tentar(`select public.consume_credits($1, 'teste')`, [
+        (saldo + 1) * 0.003,
       ]);
-      if (!t.ok && t.erro.includes('QUOTA_EXCEEDED')) ok('pedir mais minutos que o plano é recusado');
-      else if (t.ok) bad('FURO: consumiu mais minutos do que o plano permite');
+      if (!t.ok && t.erro.includes('NO_CREDITS')) ok('gastar mais crédito do que o saldo é recusado');
+      else if (t.ok) bad('FURO: gastou mais crédito do que tinha');
       else bad('recusou por outro motivo', t.erro);
+
+      // E o depósito do mês não pode duplicar por chamada repetida.
+      await c.query('select public.claim_monthly_credits()');
+      await c.query('select public.claim_monthly_credits()');
+      const depois = (await c.query('select public.credit_balance(auth.uid()) as n')).rows[0].n;
+      if (depois === saldo) ok('chamar o depósito mensal de novo não credita duas vezes');
+      else bad('o depósito mensal duplicou', `${saldo} -> ${depois}`);
     }
 
     // E o plano tem de sair da assinatura, nunca de um padrão generoso: uma

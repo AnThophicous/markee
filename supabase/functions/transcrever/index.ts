@@ -118,8 +118,7 @@ Deno.serve(async (request) => {
   const config = Array.isArray(configRows) ? configRows[0] : configRows;
   if (!config?.model) return json({ error: 'Plano sem transcrição configurada.' }, 503);
 
-  const limite = Number(config.min_limit ?? 0);
-  const usado = Number(config.min_used ?? 0);
+  const saldo = Number(config.saldo ?? 0);
 
   /**
    * A conferência é ANTES; o débito, DEPOIS, com a duração que a própria OpenAI
@@ -127,16 +126,13 @@ Deno.serve(async (request) => {
    * qualquer coisa, e o tamanho do arquivo não determina a duração — o mesmo
    * megabyte é meio minuto ou meia hora, dependendo da taxa.
    *
-   * O preço disso é que quem está a um minuto do teto consegue passar UM
-   * segmento além. É limitado por desenho: o segmento tem poucos minutos, e a
-   * chamada seguinte já encontra a cota estourada e para. Trocar isso por um
-   * débito estimado antes cobraria minutos que a pessoa não usou, que é pior.
+   * O preço disso é que quem está com um crédito consegue passar UM segmento
+   * além. É limitado por desenho: o segmento tem poucos minutos, e a chamada
+   * seguinte já encontra o saldo zerado e para. Trocar isso por um débito
+   * estimado antes cobraria minutos que a pessoa não usou, que é pior.
    */
-  if (usado >= limite) {
-    return json(
-      { error: `QUOTA_EXCEEDED:transcribe_minute:${usado}:${limite}`, usado, limite },
-      429
-    );
+  if (saldo <= 0) {
+    return json({ error: `NO_CREDITS:${saldo}:1`, saldo }, 402);
   }
 
   /* --------------------------------------------------------- chama a OpenAI */
@@ -182,33 +178,39 @@ Deno.serve(async (request) => {
   /* ------------------------------------------------------------- debita */
 
   /**
-   * Arredonda para cima, com mínimo de 1: um trecho de vinte segundos custa
-   * dinheiro e precisa aparecer no contador. Duração ausente ou absurda cai
-   * num minuto — errar para menos aqui seria dar transcrição de graça, e errar
-   * para mais cobraria pelo que não houve.
+   * O custo sai da duração que a OpenAI informou, no preço do modelo que o
+   * PLANO escolheu — nunca no que o app disser. Mínimo de um minuto: um trecho
+   * de vinte segundos custa dinheiro e precisa aparecer no extrato.
    */
   const minutos =
     Number.isFinite(segundos) && segundos > 0 ? Math.max(1, Math.ceil(segundos / 60)) : 1;
+  // O preço vem do banco, junto do modelo. Deduzi-lo do nome do modelo
+  // funcionaria hoje e falharia calado no dia em que um preço mudasse.
+  const custoUsd = minutos * Number(config.usd_min);
 
-  // `record_usage` grava sem barrar, de propósito: o trabalho já foi feito e já
-  // foi pago à OpenAI. Recusar o registro aqui perderia o consumo de vista e
-  // deixaria a pessoa transcrevendo de graça para sempre.
-  const { error: usoErro } = await supabase.rpc('record_usage', {
-    p_kind: 'transcribe_minute',
-    p_amount: minutos,
+  /**
+   * Debita DEPOIS do trabalho feito, e por isso pode ficar negativo em um
+   * segmento. É de propósito: o texto já foi produzido e já foi pago à OpenAI.
+   * Recusar o débito aqui perderia o consumo de vista e deixaria a pessoa
+   * transcrevendo de graça para sempre — o oposto do que se quer proteger.
+   */
+  const { data: debitados, error: creditoErro } = await supabase.rpc('consume_credits', {
+    p_custo_usd: custoUsd,
+    p_motivo: 'transcricao',
+    p_ref: null,
   });
 
-  if (usoErro) {
+  if (creditoErro) {
     // Não derruba a resposta: o texto é da pessoa e ela tem direito a ele. Mas
     // fica no registro do servidor, porque é dinheiro que saiu sem ser contado.
-    console.error('falha ao registrar minutos de transcricao', usoErro.message);
+    console.error('falha ao debitar creditos de transcricao', creditoErro.message);
   }
 
   return json({
     texto,
     minutos,
     segundos: Number.isFinite(segundos) ? segundos : null,
-    usado: usado + minutos,
-    limite,
+    creditos: Number(debitados ?? 0),
+    saldo: saldo - Number(debitados ?? 0),
   });
 });
