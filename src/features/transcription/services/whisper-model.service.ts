@@ -29,8 +29,22 @@ import {
 
 const PASTA = 'whisper';
 
-function pasta(): Directory {
-  const d = new Directory(Paths.document, PASTA);
+/**
+ * A pasta dos modelos, SEM criá-la.
+ *
+ * Isto já foi uma função que criava a pasta quando não existia, e era um erro
+ * de dois andares. Primeiro porque quem só quer SABER se há modelo instalado
+ * acabava escrevendo no disco — leitura com efeito colateral, e a tela de
+ * Configurações fazia isso durante o desenho, antes de mostrar qualquer coisa.
+ * Segundo porque, se a criação falhasse, o erro subia de dentro de um
+ * `useState`, onde a tela ainda não existe para poder mostrar mensagem nenhuma.
+ *
+ * Agora só quem baixa cria a pasta, que é quem de fato precisa dela.
+ */
+const pasta = () => new Directory(Paths.document, PASTA);
+
+function garantirPasta(): Directory {
+  const d = pasta();
   if (!d.exists) d.create({ intermediates: true });
   return d;
 }
@@ -55,6 +69,7 @@ const arquivoDe = (m: Modelo) => new File(pasta(), m.arquivo);
 const seloDe = (m: Modelo) => new File(pasta(), m.arquivo + '.ok');
 
 function selar(m: Modelo, bytes: number) {
+  garantirPasta();
   const selo = seloDe(m);
   if (selo.exists) selo.delete();
   selo.create();
@@ -81,14 +96,28 @@ export type EstadoDoModelo = {
   bytes: number;
 };
 
+/**
+ * NUNCA lança. Quem chama isto está desenhando uma tela.
+ *
+ * Tanto a de Configurações quanto a da transcrição perguntam o estado dos
+ * modelos dentro de um `useState`, ou seja, no meio do primeiro desenho. Uma
+ * exceção ali não vira mensagem de erro: vira tela que não abre, porque não há
+ * tela ainda para receber a mensagem. E como o disco pode faltar, encher ou
+ * negar permissão por motivos que não são culpa de ninguém, o certo é responder
+ * "não instalado" e deixar a pessoa tentar baixar — o download tem para onde
+ * mandar o erro; o desenho não tem.
+ */
 export function estadoDoModelo(id: IdDeModelo): EstadoDoModelo {
   const modelo = MODELOS[id];
-  const arquivo = arquivoDe(modelo);
 
-  const bytes = (arquivo.exists && arquivo.size) || 0;
-  const completo = bytes > 0 && bytes === selado(modelo);
-
-  return { modelo, instalado: completo, uri: arquivo.uri, bytes };
+  try {
+    const arquivo = arquivoDe(modelo);
+    const bytes = (arquivo.exists && arquivo.size) || 0;
+    const completo = bytes > 0 && bytes === selado(modelo);
+    return { modelo, instalado: completo, uri: arquivo.uri, bytes };
+  } catch {
+    return { modelo, instalado: false, uri: '', bytes: 0 };
+  }
 }
 
 /** Todos os modelos que já estão no aparelho, do maior para o menor. */
@@ -108,8 +137,19 @@ export function melhorInstalado(): EstadoDoModelo | null {
   return modelosInstalados()[0] ?? null;
 }
 
-/** A memória do aparelho, em bytes. Zero quando o sistema não informa. */
-export const ramDoAparelho = () => Device.totalMemory ?? 0;
+/**
+ * A memória do aparelho, em bytes. Zero quando o sistema não informa.
+ *
+ * Envolvido em try/catch pelo mesmo motivo do `estadoDoModelo`: quem lê isto
+ * está desenhando, e zero já significa "não sei" em todo o resto do módulo.
+ */
+export function ramDoAparelho(): number {
+  try {
+    return Device.totalMemory ?? 0;
+  } catch {
+    return 0;
+  }
+}
 
 /** O que dá para rodar aqui, já rebaixado se o pedido não couber. */
 export const escolherParaEsteAparelho = (pedido: IdDeModelo): Escolha =>
@@ -154,6 +194,8 @@ export async function baixarModelo(
         `${tamanhoEmPalavras(livre)} livres. Libere espaço e tente de novo.`
     );
   }
+
+  garantirPasta();
 
   const destino = arquivoDe(modelo);
   // Sobra de tentativa anterior. `idempotent` cuidaria do arquivo, mas apagar

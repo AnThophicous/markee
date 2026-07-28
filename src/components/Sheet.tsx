@@ -5,12 +5,12 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, {
   Easing,
   runOnJS,
-  useAnimatedKeyboard,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
+import { useAlturaDoTeclado } from '@/hooks/useAlturaDoTeclado';
 import { cn } from '@/utils/cn';
 
 type SheetProps = {
@@ -47,12 +47,15 @@ export function Sheet({ visible, onClose, edge = 'bottom', children, widthClassN
    * `statusBarTranslucent`, que é o nosso caso. Então o ajuste do sistema
    * (`adjustResize`) não alcança aqui e o painel precisa se mover por conta.
    *
-   * `useAnimatedKeyboard` roda na thread de animação e acompanha a altura
-   * quadro a quadro, então o painel sobe COLADO no teclado. Ouvir o evento de
-   * teclado no JavaScript daria um salto no fim da animação do sistema, que é
-   * o que faz painel parecer que "pula".
+   * Isto usava o `useAnimatedKeyboard` do Reanimated, que acompanha a altura
+   * quadro a quadro e faria o painel subir COLADO no teclado. Saiu porque esse
+   * hook assume o controle da janela do Android e derrubava o app na abertura —
+   * a história inteira está em `useAlturaDoTeclado`.
+   *
+   * O que ficou é o evento do sistema, com uma curva de tempo por cima. Perde-se
+   * o acompanhamento quadro a quadro; ganha-se um app que abre.
    */
-  const teclado = useAnimatedKeyboard();
+  const teclado = useAlturaDoTeclado();
 
   useEffect(() => {
     if (visible) {
@@ -89,7 +92,7 @@ export function Sheet({ visible, onClose, edge = 'bottom', children, widthClassN
         ? // A subida do teclado SOMA com a entrada e com o arrasto: os três
           // mexem no mesmo eixo, e tratá-los em transformações separadas faria
           // um cancelar o outro.
-          [{ translateY: translate.value - teclado.height.value }]
+          [{ translateY: translate.value - teclado.value }]
         : [{ translateX: translate.value }],
   }));
 
@@ -101,7 +104,7 @@ export function Sheet({ visible, onClose, edge = 'bottom', children, widthClassN
    * mais alto do que o necessário e abriria uma faixa vazia sobre o teclado.
    */
   const folgaInferior = useAnimatedStyle(() => ({
-    paddingBottom: teclado.height.value > 0 ? 16 : insets.bottom + 24,
+    paddingBottom: teclado.value > 0 ? 16 : insets.bottom + 24,
   }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
 

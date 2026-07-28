@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter, type Href } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import Animated, {
   interpolateColor,
-  useAnimatedKeyboard,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -14,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Toque } from '@/components/Toque';
+import { useAlturaDoTeclado } from '@/hooks/useAlturaDoTeclado';
 import { curva, duracao, mola } from '@/theme/motion';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -123,7 +123,7 @@ export function NavigationBar() {
    * Encolher a altura em vez de deixar de desenhar: assim o conteúdo acima
    * recupera o espaço com animação, em vez de dar um salto.
    */
-  const teclado = useAnimatedKeyboard();
+  const teclado = useAlturaDoTeclado();
 
   const posicao = useSharedValue(Math.max(0, ativa));
 
@@ -135,7 +135,7 @@ export function NavigationBar() {
   }, [ativa, posicao]);
 
   const barra = useAnimatedStyle(() => {
-    const escondida = teclado.height.value > 0;
+    const escondida = teclado.value > 0;
     return {
       height: withTiming(escondida ? 0 : ALTURA, {
         duration: duracao.curta,
@@ -148,7 +148,7 @@ export function NavigationBar() {
   // A faixa reservada para a barra de gestos do sistema também some: com o
   // teclado aberto essa barra não está lá.
   const folga = useAnimatedStyle(() => ({
-    paddingBottom: withTiming(teclado.height.value > 0 ? 0 : insets.bottom, {
+    paddingBottom: withTiming(teclado.value > 0 ? 0 : insets.bottom, {
       duration: duracao.curta,
       easing: curva.padrao,
     }),
