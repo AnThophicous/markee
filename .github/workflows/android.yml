@@ -105,6 +105,7 @@ jobs:
           node scripts/role-color-test.js
           node scripts/avisos-test.js
           node scripts/theme-test.js
+          node scripts/nav-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos

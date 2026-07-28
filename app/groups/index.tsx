@@ -135,7 +135,11 @@ export default function GroupsScreen() {
             <View key={group.id}>
               <GroupCard
                 group={group}
-                onPress={() => router.push({ pathname: '/groups/[id]', params: { id: group.id } })}
+                // Direto no mural, e não na capa do grupo. É onde as
+                // atividades são postadas e lidas; a capa tem convite, ajustes
+                // e lista de membros — coisas que se faz uma vez, não toda vez.
+                // Um toque a menos em cada abertura, todos os dias.
+                onPress={() => router.push({ pathname: '/groups/[id]/feed', params: { id: group.id } })}
                 onLongPress={() => setAcoesDe(group)}
               />
               {/* O separador só faz sentido no estilo simples; os outros já

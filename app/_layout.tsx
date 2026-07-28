@@ -1,5 +1,6 @@
 import '../global.css';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -13,6 +14,7 @@ import { AvisoBar } from '@/components/AvisoBar';
 import { configError } from '@/services/supabase';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { AppDrawer } from '@/features/navigation/components/AppDrawer';
+import { NavigationBar } from '@/features/navigation/components/NavigationBar';
 import { instalarGuardaDeSessao } from '@/features/auth/services/session-guard';
 
 // Fora do componente, de propósito: precisa estar valendo antes do primeiro
@@ -79,7 +81,12 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+            {/* A pilha ocupa o que sobra; a barra fica embaixo dela, sempre
+                visível nas telas principais. */}
+            <View style={{ flex: 1 }}>
+              <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+            </View>
+            <NavigationBar />
             <RastreadorDeRota />
             <AppDrawer />
             <ImageViewer />
