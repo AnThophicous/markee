@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 
 import { AppText } from '@/components/AppText';
 import { Fab } from '@/components/Fab';
-import { CategoryFilterRow } from '@/features/categories/components/CategoryFilterRow';
+import { CategoryCarousel } from '@/features/categories/components/CategoryCarousel';
 import { CategorySheet } from '@/features/categories/components/CategorySheet';
 import { useCategories, useCategoryCounts } from '@/features/categories/hooks/useCategories';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
@@ -82,13 +82,22 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      <CategoryFilterRow
+      {/* O carrossel substitui a fileira de etiquetas. A etiqueta dizia o
+          nome; o cartão diz o nome, o ícone e quantas notas tem dentro — e o
+          tamanho diz qual está escolhida, sem gastar borda nem cor, que já são
+          da própria categoria. */}
+      <CategoryCarousel
         categorias={categorias ?? []}
-        contagens={contagens ?? {}}
+        contagem={contagens ?? {}}
         selecionada={categoriaFiltrada}
         onSelecionar={setCategoriaFiltrada}
         onGerenciar={() => setCategoriasVisivel(true)}
       />
+
+      {/* Segurar não se descobre sozinho, então está escrito. */}
+      <AppText variant="small" className="px-5 pb-1 text-center">
+        Segure uma categoria para renomear ou apagar
+      </AppText>
 
       <NoteList
         notes={notes}
