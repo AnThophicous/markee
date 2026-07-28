@@ -1,5 +1,6 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 
+import { avisar, emPortugues } from './avisos';
 import { anotarQueda } from './crash-reporter';
 
 /**
@@ -14,8 +15,24 @@ import { anotarQueda } from './crash-reporter';
  * de Diagnóstico junto com as quedas de verdade. É o que permite descobrir, por
  * exemplo, que salvar a nota está falhando em silêncio há dias.
  *
- * Só registra; não mostra nada. Cada tela continua responsável por explicar a
- * falha à pessoa no lugar certo.
+ * A GRAVAÇÃO também avisa na tela, e não só no registro. O motivo é um defeito
+ * de classe encontrado depois de "nem dá para apagar grupo": 53 chamadas de
+ * gravação no app não tratavam erro nenhum, então qualquer recusa do servidor
+ * sumia sem nada acontecer. Consertar uma a uma seria 53 remendos, e a 54ª
+ * nasceria igual. Aqui passa toda gravação que existe.
+ *
+ * A CONSULTA não avisa: uma tela que não carregou já mostra isso por conta
+ * própria, com lista vazia ou girando, e uma faixa vermelha a cada perda de
+ * rede momentânea seria barulho constante.
+ *
+ * Quem quiser tratar o erro no lugar certo continua podendo: um `onError`
+ * próprio não substitui este, ele soma.
+ *
+ * O `meta: { silencioso: true }` cala a faixa numa gravação específica. Hoje
+ * ninguém usa: a repetição do salvamento automático, que era o caso previsto,
+ * já é contida pela deduplicação do `avisar` — a mesma frase não reaparece
+ * enquanto está na tela. Fica disponível para quando aparecer uma gravação
+ * repetida cujo erro não valha interromper ninguém.
  */
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -29,6 +46,10 @@ export const queryClient = new QueryClient({
         ? String(mutacao.options.mutationKey)
         : 'sem nome';
       anotarQueda(new Error(`Gravação [${nome}]: ${erro.message}`), false);
+
+      if (!mutacao.options.meta?.silencioso) {
+        avisar(emPortugues(erro.message));
+      }
     },
   }),
   defaultOptions: {

@@ -9,6 +9,7 @@ import { FatalScreen } from '@/components/FatalScreen';
 import { ImageViewer } from '@/components/ImageViewer';
 import { anotarQueda, instalarRelatorDeQuedas, registrarRota } from '@/services/crash-reporter';
 import { queryClient } from '@/services/queryClient';
+import { AvisoBar } from '@/components/AvisoBar';
 import { configError } from '@/services/supabase';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { AppDrawer } from '@/features/navigation/components/AppDrawer';
@@ -76,6 +77,10 @@ export default function RootLayout() {
             <RastreadorDeRota />
             <AppDrawer />
             <ImageViewer />
+            {/* Por último: fica por cima de tudo, inclusive de painel aberto —
+                é justamente com um painel aberto que a pessoa acabou de tocar
+                em algo e está esperando resposta. */}
+            <AvisoBar />
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

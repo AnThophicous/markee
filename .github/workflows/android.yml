@@ -85,7 +85,7 @@ jobs:
         # QR (conferido contra a norma), criptografia ponta a ponta, calculadora
         # (que avalia texto do modelo), laço de ferramentas, registro de quedas,
         # conversão markdown↔blocos, geometria dos gráficos, migrações do banco
-        # local e legibilidade das cores de cargo.
+        # local, legibilidade das cores de cargo e a faixa de avisos.
         #
         # Os que mais pegam defeito silencioso: a conversão instável faria a nota
         # mudar sozinha a cada abertura; um NaN na geometria faz o gráfico sumir
@@ -103,6 +103,7 @@ jobs:
           node scripts/chart-test.js
           node scripts/db-test.js
           node scripts/role-color-test.js
+          node scripts/avisos-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos
