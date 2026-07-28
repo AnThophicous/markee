@@ -14,7 +14,7 @@
     "android": {
       "package": "com.markee.app",
       "adaptiveIcon": {
-        "backgroundColor": "#F62283",
+        "backgroundColor": "#FEF4E8",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -42,6 +42,18 @@
         {
           "cameraPermission": "O Markee usa a câmera só para ler QR codes de perfis e grupos. Nenhuma imagem é gravada ou enviada.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#FEF4E8",
+          "dark": {
+            "backgroundColor": "#131314"
+          }
         }
       ]
     ],
