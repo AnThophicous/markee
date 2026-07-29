@@ -239,6 +239,8 @@ export default function NoteEditorScreen() {
         content={content}
         onInsert={(markdown) => setContent((current) => current + markdown)}
         onSetTitle={setTitle}
+        nota={{ id, titulo: title }}
+        onSetContent={setContent}
         onOpenSettings={() => router.push('/settings')}
         onUpgrade={() => router.push('/upgrade')}
       />

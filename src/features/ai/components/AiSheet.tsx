@@ -17,6 +17,8 @@ import {
   type AiOutcome,
 } from '../services/openrouter.service';
 import { useAiAction } from '../hooks/useAiActions';
+import { PropostasView } from './PropostasView';
+import type { Proposta } from '../tools/types';
 import type { ToolTrace } from '../tools/types';
 
 type AiSheetProps = {
@@ -26,6 +28,13 @@ type AiSheetProps = {
   onInsert: (markdown: string) => void;
   /** Só a ação "Sugerir título" grava aqui em vez de no corpo. */
   onSetTitle?: (title: string) => void;
+  /**
+   * A nota aberta. Sem ela a IA não recebe as ferramentas de escrita — não há
+   * o que renomear nem onde acrescentar seção.
+   */
+  nota?: { id: string; titulo: string };
+  /** Substitui o corpo da nota. Só as propostas da IA usam — ver PropostasView. */
+  onSetContent?: (conteudo: string) => void;
   onOpenSettings: () => void;
   onUpgrade: () => void;
 };
@@ -50,6 +59,8 @@ export function AiSheet({
   content,
   onInsert,
   onSetTitle,
+  nota,
+  onSetContent,
   onOpenSettings,
   onUpgrade,
 }: AiSheetProps) {
@@ -113,8 +124,14 @@ export function AiSheet({
         <ResultView
           result={result}
           traces={result.traces}
+          propostas={result.propostas}
+          noteId={nota?.id}
+          conteudoAtual={content}
+          onSetContent={onSetContent}
+          onSetTitle={onSetTitle}
           onApply={applyResult}
           onDiscard={() => aiAction.reset()}
+          onClose={onClose}
         />
       ) : (
         asking ? (
@@ -144,7 +161,13 @@ export function AiSheet({
             label="Perguntar"
             disabled={!question.trim()}
             className={question.trim() ? undefined : 'opacity-50'}
-            onPress={() => aiAction.mutate({ action: 'ask', content: question })}
+            onPress={() =>
+              aiAction.mutate({
+                action: 'ask',
+                content: question,
+                nota: nota ? { titulo: nota.titulo, conteudo: content } : undefined,
+              })
+            }
           />
           <Button label="Voltar" variant="ghost" onPress={() => setAsking(false)} />
         </View>
@@ -220,13 +243,25 @@ const TOOL_LABELS: Record<string, string> = {
 function ResultView({
   result,
   traces,
+  propostas,
+  noteId,
+  conteudoAtual,
+  onSetContent,
+  onSetTitle,
   onApply,
   onDiscard,
+  onClose,
 }: {
   result: AiOutcome;
   traces?: ToolTrace[];
+  propostas?: Proposta[];
+  noteId?: string;
+  conteudoAtual: string;
+  onSetContent?: (conteudo: string) => void;
+  onSetTitle?: (title: string) => void;
   onApply: () => void;
   onDiscard: () => void;
+  onClose: () => void;
 }) {
   const { tokens } = useTheme();
   const applyLabel = result.action === 'title' ? 'Usar como título' : 'Inserir na nota';
@@ -252,6 +287,24 @@ function ResultView({
               </View>
             ))}
           </View>
+        ) : null}
+
+        {/*
+          As propostas vêm ANTES do texto da resposta. O texto explica o que a
+          IA fez; as propostas são o que ainda precisa de decisão, e o que
+          precisa de decisão não pode estar depois de três parágrafos.
+        */}
+        {propostas && propostas.length > 0 && noteId && onSetContent ? (
+          <PropostasView
+            propostas={propostas}
+            noteId={noteId}
+            conteudoAtual={conteudoAtual}
+            onSetContent={(novo) => {
+              onSetContent(novo);
+              onClose();
+            }}
+            onSetTitle={onSetTitle}
+          />
         ) : null}
 
         {result.kind === 'text' ? (

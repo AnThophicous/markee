@@ -1,5 +1,6 @@
 import { TOOLS, findTool } from '../tools/registry';
-import type { AgentStep, ToolTrace } from '../tools/types';
+import { descrever, type ContextoDaNota } from '../tools/notas-escrita';
+import type { AgentStep, Proposta, ToolTrace } from '../tools/types';
 
 /**
  * Laço de ferramentas da IA.
@@ -24,10 +25,20 @@ export type AgentOptions = {
   allowNotes: boolean;
   /** Avisa a interface a cada ferramenta usada, para mostrar o progresso. */
   onTrace?: (trace: ToolTrace) => void;
+  /**
+   * A nota aberta. Sem ela as ferramentas de escrita nem entram no prompt.
+   *
+   * É por isso que o assistente aberto fora de uma nota não oferece renomear,
+   * marcar tag nem reorganizar: não há o que renomear, e uma ferramenta
+   * oferecida sem alvo faz o modelo tentar usá-la e falhar em laço.
+   */
+  nota?: ContextoDaNota;
 };
 
-function buildSystemPrompt(allowNotes: boolean): string {
-  const tools = TOOLS.filter((tool) => tool.needsPermission !== 'notes' || allowNotes);
+function buildSystemPrompt(allowNotes: boolean, temNota: boolean): string {
+  const tools = TOOLS.filter(
+    (tool) => (tool.needsPermission !== 'notes' || allowNotes) && (!tool.propoe || temNota)
+  );
 
   const catalog = tools
     .map((tool) => `- ${tool.name}: ${tool.description}\n  argumento: ${tool.argumentHint}`)
@@ -54,6 +65,10 @@ function buildSystemPrompt(allowNotes: boolean): string {
     allowNotes
       ? '- As notas são do próprio usuário; ele já autorizou a leitura.'
       : '- Você NÃO tem acesso às notas do usuário. Se ele pedir, diga que precisa liberar o acesso nas Configurações.',
+    temNota
+      ? '- As ferramentas que mudam a nota apenas PROPÕEM. Quem aplica é o usuário, com um toque. ' +
+        'Depois de propor, diga o que propôs e siga para a RESPOSTA — não repita a mesma proposta.'
+      : '- Não há nota aberta agora, então você não pode propor mudanças em nota nenhuma.',
   ].join('\n');
 }
 
@@ -74,18 +89,23 @@ export function parseStep(raw: string): AgentStep {
   return { kind: 'answer', text };
 }
 
-export type AgentResult = { text: string; traces: ToolTrace[] };
+export type AgentResult = { text: string; traces: ToolTrace[]; propostas: Proposta[] };
 
 export async function runAgent(question: string, options: AgentOptions): Promise<AgentResult> {
   const traces: ToolTrace[] = [];
-  const transcript: string[] = [buildSystemPrompt(options.allowNotes), '', `PERGUNTA: ${question}`];
+  const propostas: Proposta[] = [];
+  const transcript: string[] = [
+    buildSystemPrompt(options.allowNotes, Boolean(options.nota)),
+    '',
+    `PERGUNTA: ${question}`,
+  ];
 
   for (let step = 0; step < MAX_STEPS; step += 1) {
     const raw = await options.complete(transcript.join('\n'));
     const parsed = parseStep(raw);
 
     if (parsed.kind === 'answer') {
-      return { text: parsed.text, traces };
+      return { text: parsed.text, traces, propostas };
     }
 
     const tool = findTool(parsed.tool);
@@ -101,10 +121,25 @@ export async function runAgent(question: string, options: AgentOptions): Promise
     }
 
     let result: string;
-    try {
-      result = await tool.run(parsed.argument);
-    } catch (e) {
-      result = `A ferramenta falhou: ${e instanceof Error ? e.message : 'erro desconhecido'}`;
+    if (tool.propoe && options.nota) {
+      // Ferramenta de escrita: NADA é aplicado aqui. A mudança vira proposta, e
+      // o modelo recebe de volta a descrição em português — a mesma frase que a
+      // pessoa vai ler antes de aprovar, para os dois estarem falando do mesmo.
+      const mudanca = tool.propoe(parsed.argument, options.nota);
+      if (mudanca) {
+        propostas.push({ ferramenta: tool.name, mudanca });
+        result = `Proposto ao usuário: ${descrever(mudanca)}`;
+      } else {
+        result =
+          'Não consegui entender o argumento nesse formato. Confira o exemplo e tente de novo, ' +
+          'ou siga para a RESPOSTA sem propor.';
+      }
+    } else {
+      try {
+        result = await tool.run(parsed.argument);
+      } catch (e) {
+        result = `A ferramenta falhou: ${e instanceof Error ? e.message : 'erro desconhecido'}`;
+      }
     }
 
     traces.push({ tool: tool.name, argument: parsed.argument, result });
@@ -122,5 +157,5 @@ export async function runAgent(question: string, options: AgentOptions): Promise
   const last = await options.complete(transcript.join('\n'));
   const parsed = parseStep(last);
 
-  return { text: parsed.kind === 'answer' ? parsed.text : last.trim(), traces };
+  return { text: parsed.kind === 'answer' ? parsed.text : last.trim(), traces, propostas };
 }

@@ -19,9 +19,20 @@ const TOOLS = [
   { name: 'calcular', description: 'calc', argumentHint: 'x', run: async (a) => a + ' = 42' },
   { name: 'minhas_notas', description: 'notas', argumentHint: 'x', needsPermission: 'notes', run: async () => 'CONTEUDO DA NOTA' },
   { name: 'data', description: 'data', argumentHint: '', run: async () => 'Hoje e 27/07/2026' },
+  {
+    name: 'renomear', description: 'renomeia', argumentHint: 'x', needsPermission: 'notes',
+    run: async () => 'NUNCA DEVERIA SER CHAMADO',
+    propoe: (a) => (a.trim().length > 1 ? { tipo: 'titulo', titulo: a.trim() } : null),
+  },
 ];
 const findTool = (n) => TOOLS.find((t) => t.name === n.trim().toLowerCase());
-`).replace(/import type[\s\S]*?from '\.\.\/tools\/types';/, '');
+`)
+  // A escrita traz a descrição da mudança, que é texto puro. Substituída aqui
+  // pelo mesmo motivo das ferramentas: o que está em teste é o protocolo.
+  .replace(/import \{[\s\S]*?from '\.\.\/tools\/notas-escrita';/, `
+const descrever = (m) => m.tipo === 'titulo' ? 'Renomear para "' + m.titulo + '"' : m.tipo;
+`)
+  .replace(/import type[\s\S]*?from '\.\.\/tools\/types';/, '');
 
 const { outputText } = ts.transpileModule(stubbed, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
@@ -106,6 +117,69 @@ const scripted = (...replies) => {
 
   r = await runAgent('x', { complete: scripted(''), allowNotes: false });
   (typeof r.text === 'string') ? ok('resposta vazia não quebra') : bad('vazio quebrou');
+
+  console.log('\n== ferramentas que MEXEM na nota ==');
+  const nota = { titulo: 'Aula 3', conteudo: 'A mitocôndria faz respiração celular.' };
+
+  // A REGRA CENTRAL: nada é aplicado. A ferramenta de escrita nunca executa o
+  // `run` — se executasse, ela escreveria sozinha, que é exatamente o que a
+  // aprovação existe para impedir.
+  r = await runAgent('põe um título nessa nota', {
+    complete: scripted('FERRAMENTA: renomear\nARGUMENTO: Respiração celular', 'RESPOSTA: Propus um título.'),
+    allowNotes: true,
+    nota,
+  });
+  (r.propostas.length === 1 && r.propostas[0].mudanca.titulo === 'Respiração celular')
+    ? ok('a ferramenta de escrita vira proposta') : bad('proposta', JSON.stringify(r.propostas));
+  (!JSON.stringify(r.traces).includes('NUNCA DEVERIA SER CHAMADO'))
+    ? ok('e o `run` dela NAO e executado') : bad('o run da ferramenta de escrita rodou');
+  (r.traces[0].result.includes('Proposto ao usuário'))
+    ? ok('o modelo recebe de volta a mesma frase que a pessoa vai ler')
+    : bad('retorno ao modelo', r.traces[0].result);
+
+  // Sem nota aberta a ferramenta nem existe: oferece-la faria o modelo tentar
+  // usa-la e falhar em laco, sem alvo para escrever.
+  r = await runAgent('renomeia', {
+    complete: scripted('FERRAMENTA: renomear\nARGUMENTO: Qualquer', 'RESPOSTA: Não há nota aberta.'),
+    allowNotes: true,
+  });
+  (r.propostas.length === 0) ? ok('sem nota aberta, nenhuma proposta é criada')
+    : bad('propôs sem nota', JSON.stringify(r.propostas));
+
+  {
+    const c = scripted('RESPOSTA: ok');
+    await runAgent('oi', { complete: c, allowNotes: true });
+    (!c.prompts[0].includes('renomear'))
+      ? ok('e ela nem aparece no catálogo mandado ao modelo')
+      : bad('renomear foi oferecida sem nota aberta');
+
+    const comNota = scripted('RESPOSTA: ok');
+    await runAgent('oi', { complete: comNota, allowNotes: true, nota });
+    (comNota.prompts[0].includes('renomear'))
+      ? ok('com nota aberta, ela aparece') : bad('renomear sumiu com nota aberta');
+  }
+
+  // Argumento que o parser recusa: o modelo precisa ser avisado para tentar de
+  // outro jeito, em vez de a proposta sumir em silêncio.
+  r = await runAgent('renomeia', {
+    complete: scripted('FERRAMENTA: renomear\nARGUMENTO: ', 'RESPOSTA: Não consegui.'),
+    allowNotes: true,
+    nota,
+  });
+  (r.propostas.length === 0) ? ok('argumento vazio não vira proposta')
+    : bad('proposta de argumento vazio', JSON.stringify(r.propostas));
+  (r.traces[0].result.includes('Não consegui entender'))
+    ? ok('e o modelo é avisado, em vez de a proposta sumir calada')
+    : bad('aviso ao modelo', r.traces[0].result);
+
+  // Escrita sem permissao de notas: a mesma tranca que ja valia para a leitura.
+  r = await runAgent('renomeia', {
+    complete: scripted('FERRAMENTA: renomear\nARGUMENTO: Novo título', 'RESPOSTA: Preciso de acesso.'),
+    allowNotes: false,
+    nota,
+  });
+  (r.propostas.length === 0) ? ok('sem permissão de notas, não propõe nada')
+    : bad('propôs sem permissão', JSON.stringify(r.propostas));
 
   console.log(`\n${pass} passaram, ${fail} falharam`);
   process.exit(fail ? 1 : 0);

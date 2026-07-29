@@ -9,7 +9,8 @@ import {
   type AiAction,
   type AiOutcome,
 } from '../services/openrouter.service';
-import type { ToolTrace } from '../tools/types';
+import type { ContextoDaNota } from '../tools/notas-escrita';
+import type { Proposta, ToolTrace } from '../tools/types';
 
 export type { AiAction, AiOutcome };
 export { usesOwnKey };
@@ -25,7 +26,11 @@ export function describeQuotaError(message: string): string | null {
     : `Você usou seus ${limit} minutos deste mês.`;
 }
 
-export type AiResultWithTraces = AiOutcome & { traces?: ToolTrace[] };
+export type AiResultWithTraces = AiOutcome & {
+  traces?: ToolTrace[];
+  /** Mudanças que a IA propôs na nota e que esperam um toque para valer. */
+  propostas?: Proposta[];
+};
 
 /**
  * A cota é aplicada no SERVIDOR, dentro da Edge Function, antes de falar com a
@@ -37,8 +42,12 @@ export function useAiAction() {
   const allowNotes = useSettingsStore((state) => state.allowAiNotes);
   const queryClient = useQueryClient();
 
-  return useMutation<AiResultWithTraces, Error, { action: AiAction; content: string }>({
-    mutationFn: async ({ action, content }) => {
+  return useMutation<
+    AiResultWithTraces,
+    Error,
+    { action: AiAction; content: string; nota?: ContextoDaNota }
+  >({
+    mutationFn: async ({ action, content, nota }) => {
       if (!content.trim()) {
         throw new Error('Escreva algo antes de usar a IA.');
       }
@@ -46,11 +55,15 @@ export function useAiAction() {
       // "Perguntar" é a única ação com ferramentas: as outras trabalham sobre o
       // texto que já está na tela e não têm o que pesquisar.
       if (action === 'ask') {
-        const { text, traces } = await runAgent(content, {
+        const { text, traces, propostas } = await runAgent(content, {
           complete: (prompt) => completeRaw(prompt, 1600),
           allowNotes,
+          // Sem consentimento de leitura não há contexto, e sem contexto as
+          // ferramentas de escrita nem entram no prompt. As duas trancas são a
+          // mesma: a IA não toca na nota de quem não deixou.
+          nota: allowNotes ? nota : undefined,
         });
-        return { kind: 'text', action, text, traces };
+        return { kind: 'text', action, text, traces, propostas };
       }
 
       return runAiAction(action, content);
