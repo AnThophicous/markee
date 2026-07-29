@@ -1,7 +1,5 @@
 import { supabase } from '@/services/supabase';
 import { lerClassificacao, paraMarkdown, promptDeClassificacao, type Trecho } from '../classify';
-import { melhorInstalado } from './whisper-model.service';
-import { transcreverLocalmente } from './whisper-local.service';
 
 /**
  * Gravar uma aula e transformá-la em nota.
@@ -17,22 +15,16 @@ import { transcreverLocalmente } from './whisper-local.service';
  * As duas cobram crédito, cada uma pelo que custa: minuto de áudio numa,
  * token na outra.
  *
- * E existe um TERCEIRO caminho, de reserva: o whisper.cpp rodando no próprio
- * telefone. Ele entra quando o servidor não pode atender — crédito acabado,
- * sem internet, transcrição desligada. Acerta menos e demora mais, mas a
- * alternativa não é uma transcrição melhor: é nenhuma.
+ * Já houve aqui um terceiro caminho, de reserva: o whisper.cpp rodando no
+ * próprio telefone quando o servidor não podia atender. Saiu inteiro. Meio giga
+ * de modelo para baixar e horas de processamento por aula não é reserva de
+ * nada — é uma segunda promessa para quebrar junto com a primeira.
  */
-
-export type OndeFoiFeito = 'servidor' | 'aparelho';
 
 export type ResultadoDeSegmento = {
   texto: string;
   minutos: number;
   saldo: number;
-  /** Quem transcreveu. A tela usa isto para avisar que a qualidade caiu. */
-  onde: OndeFoiFeito;
-  /** Só no aparelho: segundos de processamento por segundo de áudio. */
-  custoMedido?: number;
 };
 
 /**
@@ -44,37 +36,8 @@ export type ResultadoDeSegmento = {
  */
 export async function transcreverSegmento(
   uri: string,
-  contexto = '',
-  opcoes: { onProgresso?: (fracao: number) => void; sinal?: AbortSignal } = {}
+  contexto = ''
 ): Promise<ResultadoDeSegmento> {
-  try {
-    return await peloServidor(uri, contexto);
-  } catch (erro) {
-    // Só cai para o aparelho se houver modelo baixado. Sem modelo, o erro do
-    // servidor é o que a pessoa precisa ler — "seus créditos acabaram" é
-    // acionável, "não consegui transcrever" não é.
-    if (!melhorInstalado()) throw erro;
-
-    const local = await transcreverLocalmente(uri, {
-      pista: contexto,
-      onProgresso: opcoes.onProgresso,
-      sinal: opcoes.sinal,
-    });
-
-    return {
-      texto: local.texto,
-      // Não houve cobrança: nenhum minuto foi gasto e o saldo não mudou. Quem
-      // for somar minutos de uma aula não pode contar os que rodaram de graça
-      // aqui dentro.
-      minutos: 0,
-      saldo: 0,
-      onde: 'aparelho',
-      custoMedido: local.custoMedido,
-    };
-  }
-}
-
-async function peloServidor(uri: string, contexto: string): Promise<ResultadoDeSegmento> {
   const forma = new FormData();
 
   // O React Native aceita este formato para arquivo local em FormData; um Blob
@@ -94,17 +57,15 @@ async function peloServidor(uri: string, contexto: string): Promise<ResultadoDeS
     texto: String(data?.texto ?? ''),
     minutos: Number(data?.minutos ?? 0),
     saldo: Number(data?.saldo ?? 0),
-    onde: 'servidor',
   };
 }
 
 /**
  * O nome e o tipo com que o arquivo sobe.
  *
- * Vem da extensão de verdade, e não fixo em `.m4a` como estava: o gravador
- * escreve WAV, porque é o único formato que o whisper.cpp do aparelho decodifica.
- * Anunciar `audio/m4a` para um arquivo WAV faz a OpenAI recusar por formato — e
- * a mensagem que ela devolve não diz que o problema é o nome do arquivo.
+ * Vem da extensão de verdade, e não fixo em `.m4a` como já esteve. Anunciar
+ * `audio/m4a` para um arquivo que não é m4a faz a OpenAI recusar por formato —
+ * e a mensagem que ela devolve não diz que o problema é o nome do arquivo.
  */
 export function nomearAudio(uri: string): { nome: string; tipo: string } {
   const ext = (uri.split('?')[0].split('.').pop() ?? '').toLowerCase();
@@ -174,5 +135,3 @@ function traduzir(mensagem: string): string {
   if (m.includes('grande demais')) return 'Esse trecho ficou grande demais. Grave em partes menores.';
   return mensagem;
 }
-
-export { ErroLocal, liberar as liberarModeloDaMemoria } from './whisper-local.service';

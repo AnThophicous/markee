@@ -17,7 +17,6 @@ import {
   useSettingsStore,
   type ThemePreference,
 } from '@/features/settings/store/useSettingsStore';
-import { modelosInstalados } from '@/features/transcription/services/whisper-model.service';
 import { useBottomInset } from '@/hooks/useBottomInset';
 import { listarQuedas } from '@/services/crash-reporter';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -42,9 +41,6 @@ export default function SettingsScreen() {
   // Contado na montagem: mostrar o número no próprio item evita que a pessoa
   // precise abrir a tela para descobrir que não há nada lá.
   const [quedas] = useState(() => listarQuedas().length);
-  // Mesma ideia da contagem de quedas: o número no próprio item poupa uma
-  // viagem à tela de dentro só para descobrir que não há nada lá.
-  const [modelosBaixados] = useState(() => modelosInstalados().length);
   const allowAiNotes = useSettingsStore((state) => state.allowAiNotes);
   const setAllowAiNotes = useSettingsStore((state) => state.setAllowAiNotes);
 
@@ -135,22 +131,6 @@ export default function SettingsScreen() {
             <ApiKeyField />
           </View>
         ) : null}
-
-        <Pressable
-          onPress={() => router.push('/transcription')}
-          className="mt-3 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
-        >
-          <Feather name="mic" size={18} color={tokens.ink} />
-          <View className="flex-1">
-            <AppText variant="body">Transcrição sem internet</AppText>
-            <AppText variant="small">
-              {modelosBaixados === 0
-                ? 'Baixe um modelo para transcrever aulas sem gastar créditos'
-                : `${modelosBaixados} ${modelosBaixados === 1 ? 'modelo baixado' : 'modelos baixados'}`}
-            </AppText>
-          </View>
-          <Feather name="chevron-right" size={18} color={tokens.muted} />
-        </Pressable>
 
         <Pressable
           onPress={() => router.push('/diagnostics')}
