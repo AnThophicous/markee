@@ -7,6 +7,7 @@ import { AppText } from '@/components/AppText';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import { carregarPainel } from '@/features/stats/services/study-days.service';
+import { MedalhaGrid } from '@/features/medals/components/MedalhaGrid';
 import { intensidade } from '@/features/stats/streak';
 import { useBottomInset } from '@/hooks/useBottomInset';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -145,6 +146,25 @@ export default function StatsScreen() {
             dica={`de ${painel.cartasVivas}`}
           />
           <Numero icone="mic" valor={painel.totalDeMinutos} rotulo="minutos gravados" />
+        </View>
+
+        {/*
+          As medalhas saem TODAS do banco local e são vistas só por quem
+          conquistou: nada vai para o servidor, nada aparece no perfil que os
+          outros veem. Um APK modificado consegue se dar todas elas, e o estrago
+          é zero — o efeito não sai do aparelho de quem trapaceou.
+        */}
+        <View className="mt-6">
+          <MedalhaGrid
+            numeros={{
+              ofensiva: ofensiva.atual,
+              recordeDeOfensiva: ofensiva.recorde,
+              cartasRevisadas: painel.totalDeCartas,
+              cartasMaduras: painel.cartasMaduras,
+              notasEscritas: painel.totalDeNotas,
+              minutosGravados: painel.totalDeMinutos,
+            }}
+          />
         </View>
 
         {painel.cartasNaSemana > 0 ? (

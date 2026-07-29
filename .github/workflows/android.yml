@@ -88,7 +88,7 @@ jobs:
         # local, legibilidade das cores de cargo, a faixa de avisos, a paleta, a
         # navegação, o carrossel, a separação da aula, a revisão espaçada e a
         # ofensiva, o extrato de crédito, as ferramentas de escrita da IA e o
-        # corte da aula gravada.
+        # corte da aula gravada e as medalhas.
         #
         # Os que mais pegam defeito silencioso: a conversão instável faria a nota
         # mudar sozinha a cada abertura; um NaN na geometria faz o gráfico sumir
@@ -117,6 +117,7 @@ jobs:
           node scripts/credits-test.js
           node scripts/ai-write-test.js
           node scripts/record-test.js
+          node scripts/medals-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos
