@@ -19,6 +19,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Todas as notas', icon: 'file-text', href: '/' },
   { label: 'Revisar hoje', icon: 'layers', href: '/review' },
+  { label: 'Gravar aula', icon: 'mic', href: '/record' },
   { label: 'Favoritos', icon: 'star', href: '/favorites' },
   { label: 'Pastas', icon: 'folder', href: '/folder' },
   { label: 'Tags', icon: 'hash', href: '/tag' },

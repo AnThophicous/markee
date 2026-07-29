@@ -45,6 +45,12 @@
         }
       ],
       [
+        "expo-audio",
+        {
+          "microphonePermission": "O Markee usa o microfone só para gravar a aula que você mandar gravar. O áudio fica no aparelho e só o trecho em transcrição sai para o servidor."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
