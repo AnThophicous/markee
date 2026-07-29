@@ -133,6 +133,18 @@ export default function SettingsScreen() {
         ) : null}
 
         <Pressable
+          onPress={() => router.push('/credits')}
+          className="mt-6 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+        >
+          <Feather name="credit-card" size={18} color={tokens.ink} />
+          <View className="flex-1">
+            <AppText variant="body">Créditos</AppText>
+            <AppText variant="small">Saldo, extrato e pacotes</AppText>
+          </View>
+          <Feather name="chevron-right" size={18} color={tokens.muted} />
+        </Pressable>
+
+        <Pressable
           onPress={() => router.push('/stats')}
           className="mt-3 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
         >
