@@ -159,7 +159,43 @@ jobs:
 
       - name: Compilar
         working-directory: android
-        run: ./gradlew ${{ github.event.inputs.variant == 'debug' && 'assembleDebug' || 'assembleRelease' }} --no-daemon
+        # O Gradle baixa o NDK sozinho ao configurar o :expo-sqlite, e quando
+        # esse download vem truncado ele morre com "Archive is not a ZIP
+        # archive" — build inteiro perdido por um arquivo corrompido na rede do
+        # runner, sem nenhuma relação com o código. Foi o que derrubou o build
+        # de 29/07.
+        #
+        # Baixar o NDK antes não resolveria: a versão não está em arquivo nenhum
+        # do projeto (o `app/build.gradle` lê `rootProject.ext.ndkVersion`, que
+        # o plugin do Expo preenche com o padrão do Android Gradle Plugin, em
+        # tempo de build). Não há o que ler para saber o que baixar.
+        #
+        # Então a segunda tentativa é CONDICIONADA à assinatura da falha. Repetir
+        # sempre custaria trinta minutos para reportar um erro de código de
+        # verdade; repetir só quando o log traz o zip corrompido custa nada no
+        # caso normal e conserta exatamente o caso que aconteceu.
+        run: |
+          ALVO='${{ github.event.inputs.variant == 'debug' && 'assembleDebug' || 'assembleRelease' }}'
+          LOG=$(mktemp)
+
+          set +e
+          ./gradlew "$ALVO" --no-daemon 2>&1 | tee "$LOG"
+          CODIGO=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$CODIGO" -eq 0 ]; then exit 0; fi
+
+          if ! grep -qE 'not a ZIP archive|InstallFailedException|Error on ZipFile' "$LOG"; then
+            echo "::error::A compilação falhou por um motivo que não é o download do NDK."
+            exit "$CODIGO"
+          fi
+
+          echo "::warning::O NDK veio corrompido. Apagando o pedaço baixado e compilando de novo."
+          # O pedaço truncado precisa sair: com o diretório no lugar, o
+          # sdkmanager considera a instalação boa e não baixa de novo.
+          rm -rf "$ANDROID_HOME"/ndk/* "$ANDROID_HOME/.temp" "$ANDROID_HOME/.downloadIntermediates"
+
+          ./gradlew "$ALVO" --no-daemon
 
       - name: Nomear com a data e o commit
         id: apk
