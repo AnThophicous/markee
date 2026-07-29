@@ -1,6 +1,12 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { MIGRATION_001_INIT, MIGRATION_002_CATEGORIES, MIGRATION_003_NOTE_LOOK } from '../schema';
+import {
+  MIGRATION_001_INIT,
+  MIGRATION_002_CATEGORIES,
+  MIGRATION_003_NOTE_LOOK,
+  MIGRATION_004_REVIEW,
+  MIGRATION_005_STREAK,
+} from '../schema';
 
 type Migration = { version: number; sql: string };
 
@@ -14,6 +20,8 @@ const MIGRATIONS: Migration[] = [
   { version: 1, sql: MIGRATION_001_INIT },
   { version: 2, sql: MIGRATION_002_CATEGORIES },
   { version: 3, sql: MIGRATION_003_NOTE_LOOK },
+  { version: 4, sql: MIGRATION_004_REVIEW },
+  { version: 5, sql: MIGRATION_005_STREAK },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

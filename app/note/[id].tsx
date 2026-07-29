@@ -13,6 +13,7 @@ import { FolderPickerSheet } from '@/features/folders/components/FolderPickerShe
 import { CategorySheet } from '@/features/categories/components/CategorySheet';
 import { NoteActionsSheet } from '@/features/notes/components/NoteActionsSheet';
 import { NoteLookSheet } from '@/features/notes/components/NoteLookSheet';
+import { CardsSheet } from '@/features/review/components/CardsSheet';
 import { useNote } from '@/features/notes/hooks/useNote';
 import { useSoftDeleteNote, useUpdateNote } from '@/features/notes/hooks/useNoteMutations';
 import { ReminderSheet } from '@/features/reminders/components/ReminderSheet';
@@ -38,6 +39,7 @@ export default function NoteEditorScreen() {
   const [lookVisible, setLookVisible] = useState(false);
   const [reminderVisible, setReminderVisible] = useState(false);
   const [aiVisible, setAiVisible] = useState(false);
+  const [cardsVisible, setCardsVisible] = useState(false);
 
   const hasInitialized = useRef(false);
   const startedBlank = useRef(false);
@@ -189,6 +191,7 @@ export default function NoteEditorScreen() {
         onSetCategory={() => setCategoryPickerVisible(true)}
         onSetLook={() => setLookVisible(true)}
         onSetReminder={() => setReminderVisible(true)}
+        onMakeCards={() => setCardsVisible(true)}
         onExport={() => exportNoteAsMarkdown(title, content)}
         onDelete={handleDelete}
       />
@@ -221,6 +224,13 @@ export default function NoteEditorScreen() {
         onClose={() => setReminderVisible(false)}
         noteId={id}
         noteTitle={title}
+      />
+
+      <CardsSheet
+        visible={cardsVisible}
+        onClose={() => setCardsVisible(false)}
+        noteId={id}
+        conteudo={content}
       />
 
       <AiSheet

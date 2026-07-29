@@ -17,6 +17,7 @@ type NoteActionsSheetProps = {
   onSetCategory: () => void;
   onSetLook: () => void;
   onSetReminder: () => void;
+  onMakeCards: () => void;
   onExport: () => void;
   onDelete: () => void;
 };
@@ -31,6 +32,7 @@ export function NoteActionsSheet({
   onSetCategory,
   onSetLook,
   onSetReminder,
+  onMakeCards,
   onExport,
   onDelete,
 }: NoteActionsSheetProps) {
@@ -69,6 +71,8 @@ export function NoteActionsSheet({
       {row('folder', 'Mover para pasta', onMoveToFolder)}
       <Divider />
       {row('bell', 'Lembrete', onSetReminder)}
+      <Divider />
+      {row('layers', 'Virar cartas de revisão', onMakeCards)}
       <Divider />
       {row('share', 'Exportar Markdown', onExport)}
       <Divider />

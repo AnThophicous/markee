@@ -5,6 +5,7 @@ import type { Note, NoteWithTags } from '@/types';
 import { generateId } from '@/utils/id';
 import { now } from '@/utils/date';
 import { extractHashtags, stripMarkdown } from '@/utils/text';
+import { registrarNota } from '@/features/stats/services/study-days.service';
 
 type NoteRow = {
   id: string;
@@ -165,6 +166,12 @@ export async function createNote(
     timestamp
   );
   await syncNoteFts(db, id, title, content);
+  // A ofensiva conta escrever nota como estudo. Registrar na CRIAÇÃO e não a
+  // cada salvamento é de propósito: o salvamento automático dispara a cada
+  // 600ms enquanto se digita, e contar ali faria uma aula render trezentas
+  // "atividades" — o mapa de calor ficaria todo no tom máximo e pararia de
+  // dizer qualquer coisa.
+  await registrarNota();
   return {
     id,
     title,

@@ -133,6 +133,18 @@ export default function SettingsScreen() {
         ) : null}
 
         <Pressable
+          onPress={() => router.push('/stats')}
+          className="mt-3 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+        >
+          <Feather name="trending-up" size={18} color={tokens.ink} />
+          <View className="flex-1">
+            <AppText variant="body">Seu estudo</AppText>
+            <AppText variant="small">Ofensiva, mapa das últimas semanas e totais</AppText>
+          </View>
+          <Feather name="chevron-right" size={18} color={tokens.muted} />
+        </Pressable>
+
+        <Pressable
           onPress={() => router.push('/diagnostics')}
           className="mt-4 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
         >

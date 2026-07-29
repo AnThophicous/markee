@@ -117,3 +117,72 @@ export const MIGRATION_003_NOTE_LOOK = `
 ALTER TABLE notes ADD COLUMN cover_color TEXT;
 ALTER TABLE notes ADD COLUMN emoji TEXT;
 `;
+
+/**
+ * Cartas de revisão.
+ *
+ * Uma carta nasce de um trecho da nota: o que estava escrito vira pergunta, e a
+ * resposta é o que a pessoa precisa lembrar. A nota continua sendo a fonte —
+ * apagar a nota apaga as cartas dela, por isso o ON DELETE CASCADE.
+ *
+ * A facilidade é INTEIRO, em milésimos. Guardar 2.5 como REAL parece mais
+ * natural e é pior: a facilidade multiplica a si mesma a cada revisão, então o
+ * erro de ponto flutuante não fica pequeno, ele compõe. Depois de um ano de uso
+ * dois aparelhos com a mesma resposta chegariam a datas diferentes.
+ *
+ * `card_reviews` guarda toda revisão respondida, e não só o estado atual da
+ * carta. É o que permite dizer "você revisou 40 cartas essa semana" sem chutar
+ * — e o estado da carta, sozinho, não sabe contar o próprio passado.
+ */
+export const MIGRATION_004_REVIEW = `
+CREATE TABLE IF NOT EXISTS cards (
+  id TEXT PRIMARY KEY,
+  note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+  front TEXT NOT NULL,
+  back TEXT NOT NULL,
+  repetitions INTEGER NOT NULL DEFAULT 0,
+  interval_days INTEGER NOT NULL DEFAULT 0,
+  ease INTEGER NOT NULL DEFAULT 2500,
+  lapses INTEGER NOT NULL DEFAULT 0,
+  due_at INTEGER NOT NULL,
+  suspended INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cards_due ON cards(due_at);
+CREATE INDEX IF NOT EXISTS idx_cards_note ON cards(note_id);
+
+CREATE TABLE IF NOT EXISTS card_reviews (
+  id TEXT PRIMARY KEY,
+  card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+  answer TEXT NOT NULL,
+  interval_days INTEGER NOT NULL,
+  reviewed_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_reviews_when ON card_reviews(reviewed_at);
+CREATE INDEX IF NOT EXISTS idx_card_reviews_card ON card_reviews(card_id);
+`;
+
+/**
+ * Dias de estudo, para a ofensiva.
+ *
+ * Poderia ser calculado varrendo notas e revisões, e essa foi a primeira ideia.
+ * Não serve: "estudou hoje" inclui escrever nota, revisar carta e gravar aula,
+ * três tabelas diferentes, e a ofensiva é lida na abertura do app — varrer três
+ * tabelas inteiras para desenhar um número na tela inicial fica lento
+ * exatamente para quem mais usa o app.
+ *
+ * Uma linha por dia, com a data em texto AAAA-MM-DD e não em milissegundos: a
+ * ofensiva é sobre o dia do calendário de quem estuda, e o mesmo instante cai
+ * em dias diferentes dependendo do fuso. Texto grava o dia que a pessoa viu.
+ */
+export const MIGRATION_005_STREAK = `
+CREATE TABLE IF NOT EXISTS study_days (
+  day TEXT PRIMARY KEY,
+  notes_written INTEGER NOT NULL DEFAULT 0,
+  cards_reviewed INTEGER NOT NULL DEFAULT 0,
+  minutes_recorded INTEGER NOT NULL DEFAULT 0
+);
+`;

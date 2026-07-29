@@ -9,6 +9,7 @@ import { CategoryCarousel } from '@/features/categories/components/CategoryCarou
 import { CategorySheet } from '@/features/categories/components/CategorySheet';
 import { useCategories, useCategoryCounts } from '@/features/categories/hooks/useCategories';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
+import { useResumoDaFila } from '@/features/review/hooks/useCards';
 import { NewNoteSheet } from '@/features/notes/components/NewNoteSheet';
 import { NoteList } from '@/features/notes/components/NoteList';
 import { useNotes } from '@/features/notes/hooks/useNotes';
@@ -33,6 +34,7 @@ export default function HomeScreen() {
   );
   const { data: categorias } = useCategories();
   const { data: contagens } = useCategoryCounts();
+  const { data: fila } = useResumoDaFila();
   const createNote = useCreateNote();
 
   const [templatesVisible, setTemplatesVisible] = useState(false);
@@ -79,6 +81,36 @@ export default function HomeScreen() {
           <Pressable onPress={() => setCaiuAntes(false)} hitSlop={12}>
             <Feather name="x" size={16} color={tokens.muted} />
           </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* A fila de revisão só aparece quando TEM fila. Um item fixo dizendo
+          "0 cartas para revisar" ocupa a mesma altura e não informa nada — e
+          quem ainda não criou carta nenhuma não precisa ver a função todo dia
+          para lembrar que não a usa. */}
+      {(fila?.vencidas ?? 0) > 0 ? (
+        <Pressable
+          onPress={() => router.push('/review')}
+          className="mx-4 mb-2 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3 active:opacity-70 dark:bg-surface-dark"
+          accessibilityRole="button"
+        >
+          <View
+            className="h-9 w-9 items-center justify-center rounded-full"
+            style={{ backgroundColor: tokens.accent + '22' }}
+          >
+            <Feather name="layers" size={16} color={tokens.accent} />
+          </View>
+          <View className="flex-1">
+            <AppText variant="caption" className="text-ink-light dark:text-ink-dark">
+              {fila?.vencidas === 1
+                ? '1 carta para revisar'
+                : `${fila?.vencidas} cartas para revisar`}
+            </AppText>
+            <AppText variant="small">
+              {(fila?.novas ?? 0) > 0 ? `${fila?.novas} nunca vistas` : 'Toque para começar'}
+            </AppText>
+          </View>
+          <Feather name="chevron-right" size={16} color={tokens.muted} />
         </Pressable>
       ) : null}
 

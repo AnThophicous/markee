@@ -46,10 +46,22 @@ const { outputText } = ts.transpileModule(src, {
 });
 const mod = { exports: {} };
 new Function('module', 'exports', outputText)(mod, mod.exports);
-const { MIGRATION_001_INIT, MIGRATION_002_CATEGORIES, MIGRATION_003_NOTE_LOOK } = mod.exports;
+const {
+  MIGRATION_001_INIT,
+  MIGRATION_002_CATEGORIES,
+  MIGRATION_003_NOTE_LOOK,
+  MIGRATION_004_REVIEW,
+  MIGRATION_005_STREAK,
+} = mod.exports;
 
 /** Todas as migrações, na ordem do runner. */
-const TUDO = [MIGRATION_001_INIT, MIGRATION_002_CATEGORIES, MIGRATION_003_NOTE_LOOK];
+const TUDO = [
+  MIGRATION_001_INIT,
+  MIGRATION_002_CATEGORIES,
+  MIGRATION_003_NOTE_LOOK,
+  MIGRATION_004_REVIEW,
+  MIGRATION_005_STREAK,
+];
 const migrar = (db) => TUDO.forEach((sql) => db.exec(sql));
 
 let pass = 0;
@@ -281,6 +293,140 @@ console.log('\nBanco local\n');
   const primeira = db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS proxima FROM categories').get();
   if (primeira.proxima === 0) ok('a primeira categoria criada recebe posição 0');
   else bad('posição na tabela vazia', primeira.proxima);
+}
+
+/* --------------------------------------- cartas: a migração sobre banco cheio */
+{
+  // O caso que importa: quem JÁ TEM o app instalado está na versão 3, com notas
+  // escritas. A 004 e a 005 caem por cima disso, não sobre um banco vazio.
+  const db = new DatabaseSync(':memory:');
+  db.exec(MIGRATION_001_INIT);
+  db.exec(MIGRATION_002_CATEGORIES);
+  db.exec(MIGRATION_003_NOTE_LOOK);
+  db.prepare(
+    `INSERT INTO notes (id, title, content, is_favorite, is_pinned, is_deleted, created_at, updated_at)
+     VALUES (?, ?, ?, 0, 0, 0, ?, ?)`
+  ).run('n1', 'Biologia', 'A mitocôndria é a organela da respiração celular.', 1, 1);
+
+  db.exec(MIGRATION_004_REVIEW);
+  db.exec(MIGRATION_005_STREAK);
+
+  const nota = db.prepare('SELECT title FROM notes WHERE id = ?').get('n1');
+  if (nota && nota.title === 'Biologia') ok('a nota de antes sobrevive às migrações 004 e 005');
+  else bad('a nota de antes sobrevive', JSON.stringify(nota));
+}
+
+/* --------------------------------------- apagar a nota apaga as cartas dela */
+{
+  const db = new DatabaseSync(':memory:');
+  migrar(db);
+  db.exec('PRAGMA foreign_keys = ON');
+  db.prepare(
+    `INSERT INTO notes (id, title, content, is_favorite, is_pinned, is_deleted, created_at, updated_at)
+     VALUES ('n1', 'Bio', 'corpo', 0, 0, 0, 1, 1)`
+  ).run();
+  db.prepare(
+    `INSERT INTO cards (id, note_id, front, back, ease, due_at, created_at, updated_at)
+     VALUES ('c1', 'n1', 'pergunta', 'resposta', 2500, 100, 1, 1)`
+  ).run();
+  db.prepare(
+    `INSERT INTO card_reviews (id, card_id, answer, interval_days, reviewed_at)
+     VALUES ('r1', 'c1', 'bom', 6, 200)`
+  ).run();
+
+  db.prepare('DELETE FROM notes WHERE id = ?').run('n1');
+  const cartas = db.prepare('SELECT COUNT(*) AS n FROM cards').get();
+  const revisoes = db.prepare('SELECT COUNT(*) AS n FROM card_reviews').get();
+  if (cartas.n === 0) ok('apagar a nota apaga as cartas dela');
+  else bad('cartas órfãs sobraram', cartas.n);
+  // Duas cascatas em série: nota -> carta -> revisão. Se a segunda não estiver
+  // declarada, sobra revisão apontando para carta que não existe mais, e a
+  // estatística passa a contar revisões de cartas fantasma.
+  if (revisoes.n === 0) ok('e as revisões dessas cartas vão junto');
+  else bad('revisões órfãs sobraram', revisoes.n);
+}
+
+/* --------------------------------------- os padrões da carta nova */
+{
+  const db = new DatabaseSync(':memory:');
+  migrar(db);
+  db.prepare(
+    `INSERT INTO notes (id, title, content, is_favorite, is_pinned, is_deleted, created_at, updated_at)
+     VALUES ('n1', 'Bio', 'corpo', 0, 0, 0, 1, 1)`
+  ).run();
+  db.prepare(
+    `INSERT INTO cards (id, note_id, front, back, due_at, created_at, updated_at)
+     VALUES ('c1', 'n1', 'p', 'r', 100, 1, 1)`
+  ).run();
+
+  const c = db.prepare('SELECT * FROM cards WHERE id = ?').get('c1');
+  if (c.ease === 2500) ok('a carta nova nasce com facilidade 2,5');
+  else bad('facilidade inicial', c.ease);
+  if (c.repetitions === 0 && c.interval_days === 0 && c.lapses === 0)
+    ok('e com repetições, intervalo e quedas zerados');
+  else bad('estado inicial da carta', JSON.stringify(c));
+  if (c.suspended === 0) ok('e não suspensa');
+  else bad('suspensa por padrão', c.suspended);
+}
+
+/* --------------------------------------- o UPSERT do dia de estudo */
+{
+  const db = new DatabaseSync(':memory:');
+  migrar(db);
+  const somar = (coluna, quanto) =>
+    db.prepare(
+      `INSERT INTO study_days (day, ${coluna}) VALUES (?, ?)
+       ON CONFLICT(day) DO UPDATE SET ${coluna} = ${coluna} + excluded.${coluna}`
+    ).run('2026-07-29', quanto);
+
+  // O segundo estudo do mesmo dia é o caso perigoso: sem ON CONFLICT ele
+  // estouraria na chave primária e a revisão seria perdida em silêncio.
+  somar('cards_reviewed', 1);
+  somar('cards_reviewed', 1);
+  somar('notes_written', 1);
+
+  const d = db.prepare('SELECT * FROM study_days WHERE day = ?').get('2026-07-29');
+  if (d.cards_reviewed === 2) ok('duas revisões no mesmo dia somam, não estouram');
+  else bad('soma de revisões', d.cards_reviewed);
+  if (d.notes_written === 1) ok('e a coluna da nota não é zerada pela da carta');
+  else bad('nota zerada pela carta', d.notes_written);
+  if (d.minutes_recorded === 0) ok('a coluna não tocada fica em zero, não em nulo');
+  else bad('minutos', d.minutes_recorded);
+
+  const linhas = db.prepare('SELECT COUNT(*) AS n FROM study_days').get();
+  if (linhas.n === 1) ok('e o dia continua sendo uma linha só');
+  else bad('linhas por dia', linhas.n);
+}
+
+/* --------------------------------------- a fila só traz o que venceu */
+{
+  const db = new DatabaseSync(':memory:');
+  migrar(db);
+  db.prepare(
+    `INSERT INTO notes (id, title, content, is_favorite, is_pinned, is_deleted, created_at, updated_at)
+     VALUES ('n1', 'Bio', 'corpo', 0, 0, 0, 1, 1)`
+  ).run();
+  const carta = (id, vence, suspensa) =>
+    db.prepare(
+      `INSERT INTO cards (id, note_id, front, back, ease, due_at, suspended, created_at, updated_at)
+       VALUES (?, 'n1', 'p', 'r', 2500, ?, ?, 1, 1)`
+    ).run(id, vence, suspensa);
+
+  const agora = 1000;
+  carta('vencida', 500, 0);
+  carta('hoje', 1000, 0);
+  carta('futura', 5000, 0);
+  carta('suspensa', 500, 1);
+
+  const fila = db.prepare(
+    'SELECT id FROM cards WHERE suspended = 0 AND due_at <= ? ORDER BY due_at ASC'
+  ).all(agora);
+  const ids = fila.map((r) => r.id);
+  if (ids.length === 2 && ids[0] === 'vencida' && ids[1] === 'hoje')
+    ok('a fila traz vencida e a do momento, em ordem, e nada mais');
+  else bad('fila do dia', JSON.stringify(ids));
+  if (!ids.includes('suspensa')) ok('carta suspensa fica fora da fila');
+  else bad('carta suspensa entrou na fila');
 }
 
 console.log(`\n${pass} passaram, ${fail} falharam\n`);
