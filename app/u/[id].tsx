@@ -9,6 +9,9 @@ import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { useSession } from '@/features/auth/hooks/useSession';
 import { useFriends, useOpenDm, useRemoveFriend, useSendFriendRequest } from '@/features/friends/hooks/useFriends';
+import { EmblemaDetalhe } from '@/features/medals/components/EmblemaLinha';
+import { emblemasDe } from '@/features/medals/emblemas';
+import { useEmblemasDoPerfil } from '@/features/medals/hooks/useEmblemas';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
 import { useProfile } from '@/features/profile/hooks/useProfile';
@@ -25,6 +28,7 @@ export default function PublicProfileScreen() {
 
   const { data: profile, isLoading } = useProfile(id);
   const { data: friends } = useFriends();
+  const { data: emblemas } = useEmblemasDoPerfil(id);
   const sendRequest = useSendFriendRequest();
   const removeFriend = useRemoveFriend();
   const openDm = useOpenDm();
@@ -75,6 +79,15 @@ export default function PublicProfileScreen() {
         <ProfileHeader profile={profile} />
 
         <View className="gap-2 px-5">
+          {/* Só os emblemas que a pessoa carrega para qualquer lugar. Os de
+              grupo ("dono", "voz do grupo") não cabem aqui: fora de um grupo
+              eles não querem dizer nada. */}
+          {(emblemas ?? []).length > 0 ? (
+            <View className="rounded-2xl bg-surface-light p-4 dark:bg-surface-dark">
+              <EmblemaDetalhe emblemas={emblemasDe(emblemas ?? [])} />
+            </View>
+          ) : null}
+
           {!profile.bio && !profile.headline ? (
             <View className="flex-row items-center gap-2.5 rounded-2xl bg-surface-light p-4 dark:bg-surface-dark">
               <Feather name="feather" size={16} color={tokens.muted} />

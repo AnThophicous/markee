@@ -1,4 +1,4 @@
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -47,7 +47,14 @@ export default function StatsScreen() {
 
       <ScrollView className="px-4" contentContainerStyle={{ paddingBottom: bottom }}>
         {/* --- a ofensiva ------------------------------------------------- */}
-        <View className="mt-2 items-center rounded-3xl bg-surface-light py-7 dark:bg-surface-dark">
+        {/* Toca e abre a tela da ofensiva, onde ficam as conquistas de dias e o
+            protetor. Aqui continua só o número, que é o que o painel quer
+            responder — o resto tem tela própria porque é o que se olha todo
+            dia, e não junto com o balanço do mês. */}
+        <Pressable
+          onPress={() => router.push('/ofensiva')}
+          className="mt-2 items-center rounded-3xl bg-surface-light py-7 active:opacity-80 dark:bg-surface-dark"
+        >
           <View className="flex-row items-center gap-2">
             <Feather
               name="zap"
@@ -80,7 +87,14 @@ export default function StatsScreen() {
               É o seu recorde
             </AppText>
           ) : null}
-        </View>
+
+          <View className="mt-3 flex-row items-center gap-1">
+            <AppText variant="small" style={{ color: tokens.accent }}>
+              Ver conquistas
+            </AppText>
+            <Feather name="chevron-right" size={13} color={tokens.accent} />
+          </View>
+        </Pressable>
 
         {/* --- o mapa dos últimos três meses ----------------------------- */}
         <AppText variant="caption" className="mb-2 mt-6 px-1">

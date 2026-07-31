@@ -105,8 +105,14 @@ export async function carregarPainel(): Promise<Painel> {
      FROM cards WHERE suspended = 0`
   );
 
+  // Dia coberto por protetor entra na conta da ofensiva junto com os
+  // estudados — é exatamente para isso que o protetor existe. Fora daqui ele
+  // não conta para nada: não vira nota escrita, não vira carta revisada, e não
+  // aparece no mapa de calor, porque nesses dias não houve estudo nenhum.
+  const protegidos = await db.getAllAsync<{ day: string }>('SELECT day FROM streak_shields');
+
   return {
-    ofensiva: calcularOfensiva(dias.map((d) => d.dia)),
+    ofensiva: calcularOfensiva([...dias.map((d) => d.dia), ...protegidos.map((p) => p.day)]),
     mapa,
     pico,
     totalDeNotas: dias.reduce((s, d) => s + d.notas, 0),

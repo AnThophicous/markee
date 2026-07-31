@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
 import { AppText } from '@/components/AppText';
 import { Divider } from '@/components/Divider';
+import { Foto } from '@/components/Foto';
 import { Sheet } from '@/components/Sheet';
 import { useSession } from '@/features/auth/hooks/useSession';
 import { NicknameSheet } from '@/features/groups/components/NicknameSheet';
@@ -18,6 +19,9 @@ import {
   useSetNickname,
 } from '@/features/groups/hooks/useGroups';
 import { Permission, hasPermission } from '@/features/groups/permissions';
+import { EmblemaDetalhe, EmblemaLinha } from '@/features/medals/components/EmblemaLinha';
+import { emblemasDe } from '@/features/medals/emblemas';
+import { useEmblemasDoGrupo } from '@/features/medals/hooks/useEmblemas';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import { useBottomInset } from '@/hooks/useBottomInset';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -32,6 +36,7 @@ export default function MembersScreen() {
   const { data: members } = useMembers(id);
   const { data: roles } = useRoles(id);
   const { data: perms } = useMyPermissions(id);
+  const { data: emblemas } = useEmblemasDoGrupo(id);
   const identidade = useGroupIdentity(id);
   const assignRole = useAssignRole(id ?? '');
   const kickMember = useKickMember(id ?? '');
@@ -83,15 +88,16 @@ export default function MembersScreen() {
             const quem = identidade(member.userId, member.displayName);
             return (
               <View key={member.userId}>
+                {/* Agora TODA pessoa abre a folha, e não só quem se pode
+                    moderar. Antes, tocar em alguém sem ter permissão não fazia
+                    nada — e com os emblemas passou a haver o que ver ali: o
+                    ícone sozinho ao lado do nome não diz o que significa. */}
                 <Pressable
-                  onPress={() => {
-                    if (member.userId === user?.id) setApelidoAberto(true);
-                    else if (canManageRoles || canKick) setSelectedId(member.userId);
-                  }}
+                  onPress={() => setSelectedId(member.userId)}
                   className="flex-row items-center gap-3 px-4 py-3"
                 >
                   {member.avatarUrl ? (
-                    <Image source={{ uri: member.avatarUrl }} className="h-10 w-10 rounded-full" />
+                    <Foto uri={member.avatarUrl} style={{ width: 40, height: 40 }} raio={20} />
                   ) : (
                     <View className="h-10 w-10 items-center justify-center rounded-full bg-subtle-light dark:bg-subtle-dark">
                       <AppText>{quem.nome.charAt(0).toUpperCase()}</AppText>
@@ -104,9 +110,18 @@ export default function MembersScreen() {
                         nenhuma. A cor vem ajustada ao tema pelo useGroupIdentity;
                         crua, uma cor clara sumiria no fundo branco. */}
                     <View className="flex-row items-center gap-1.5">
-                      <AppText variant="body" numberOfLines={1} style={{ color: quem.cor }}>
+                      <AppText
+                        variant="body"
+                        numberOfLines={1}
+                        className="shrink"
+                        style={{ color: quem.cor }}
+                      >
                         {quem.nome}
                       </AppText>
+                      {/* Os emblemas vêm prontos do servidor — o aplicativo não
+                          calcula nenhum, porque isto aqui é o que os outros
+                          veem. Ver medalhas.ts para a regra inteira. */}
+                      <EmblemaLinha codigos={emblemas?.get(member.userId) ?? []} />
                       {member.userId === user?.id ? (
                         <AppText variant="small" style={{ color: tokens.muted }}>
                           (você)
@@ -128,9 +143,7 @@ export default function MembersScreen() {
                     ) : null}
                   </View>
 
-                  {member.userId === user?.id || canManageRoles || canKick ? (
-                    <Feather name="more-horizontal" size={18} color={tokens.muted} />
-                  ) : null}
+                  <Feather name="more-horizontal" size={18} color={tokens.muted} />
                 </Pressable>
                 {index < (members ?? []).length - 1 ? <Divider className="ml-4" /> : null}
               </View>
@@ -146,7 +159,33 @@ export default function MembersScreen() {
               {selected.nickname ?? selected.displayName}
             </AppText>
 
-            {canManageRoles ? (
+            {(emblemas?.get(selected.userId) ?? []).length > 0 ? (
+              <View className="mb-3">
+                <EmblemaDetalhe emblemas={emblemasDe(emblemas?.get(selected.userId) ?? [])} />
+              </View>
+            ) : (
+              <AppText variant="small" className="mb-3 px-1">
+                Sem emblemas neste grupo ainda.
+              </AppText>
+            )}
+
+            {selected.userId === user?.id ? (
+              <>
+                <Divider className="mb-1" />
+                <Pressable
+                  onPress={() => {
+                    setSelectedId(null);
+                    setApelidoAberto(true);
+                  }}
+                  className="flex-row items-center gap-3 py-3.5"
+                >
+                  <Feather name="edit-3" size={18} color={tokens.accent} />
+                  <AppText variant="body">Mudar meu apelido aqui</AppText>
+                </Pressable>
+              </>
+            ) : null}
+
+            {canManageRoles && selected.userId !== user?.id ? (
               <>
                 <AppText variant="small" className="mb-1 px-1">
                   CARGO
@@ -169,7 +208,11 @@ export default function MembersScreen() {
               </>
             ) : null}
 
-            {canKick ? (
+            {/* `selected.userId !== user?.id` é novo e não é detalhe: a folha
+                passou a abrir também em você mesmo, e sem esta condição o dono
+                do grupo veria "Remover do grupo" apontando para ele — um toque
+                errado e a pessoa se expulsa do próprio grupo. */}
+            {canKick && selected.userId !== user?.id ? (
               <>
                 <Divider className="my-2" />
                 <Pressable

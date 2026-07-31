@@ -6,6 +6,7 @@ import {
   MIGRATION_003_NOTE_LOOK,
   MIGRATION_004_REVIEW,
   MIGRATION_005_STREAK,
+  MIGRATION_006_SHIELDS,
 } from '../schema';
 
 type Migration = { version: number; sql: string };
@@ -22,6 +23,7 @@ const MIGRATIONS: Migration[] = [
   { version: 3, sql: MIGRATION_003_NOTE_LOOK },
   { version: 4, sql: MIGRATION_004_REVIEW },
   { version: 5, sql: MIGRATION_005_STREAK },
+  { version: 6, sql: MIGRATION_006_SHIELDS },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

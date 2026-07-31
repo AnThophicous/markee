@@ -52,6 +52,7 @@ const {
   MIGRATION_003_NOTE_LOOK,
   MIGRATION_004_REVIEW,
   MIGRATION_005_STREAK,
+  MIGRATION_006_SHIELDS,
 } = mod.exports;
 
 /** Todas as migrações, na ordem do runner. */
@@ -61,6 +62,7 @@ const TUDO = [
   MIGRATION_003_NOTE_LOOK,
   MIGRATION_004_REVIEW,
   MIGRATION_005_STREAK,
+  MIGRATION_006_SHIELDS,
 ];
 const migrar = (db) => TUDO.forEach((sql) => db.exec(sql));
 
@@ -310,10 +312,46 @@ console.log('\nBanco local\n');
 
   db.exec(MIGRATION_004_REVIEW);
   db.exec(MIGRATION_005_STREAK);
+  db.exec(MIGRATION_006_SHIELDS);
 
   const nota = db.prepare('SELECT title FROM notes WHERE id = ?').get('n1');
-  if (nota && nota.title === 'Biologia') ok('a nota de antes sobrevive às migrações 004 e 005');
+  if (nota && nota.title === 'Biologia') ok('a nota de antes sobrevive às migrações 004, 005 e 006');
   else bad('a nota de antes sobrevive', JSON.stringify(nota));
+}
+
+/* ------------------------------------------- o protetor de ofensiva */
+{
+  const db = new DatabaseSync(':memory:');
+  migrar(db);
+
+  const gravar = (dia) =>
+    db
+      .prepare('INSERT OR IGNORE INTO streak_shields (day, spent_at) VALUES (?, ?)')
+      .run(dia, Date.now());
+
+  gravar('2026-07-29');
+  gravar('2026-07-29');
+  const n = db.prepare('SELECT COUNT(*) AS n FROM streak_shields').get();
+  // É o INSERT OR IGNORE que segura a tela aberta duas vezes seguidas: sem ele,
+  // a segunda conferida gastaria outro protetor pelo mesmo dia — ou explodiria
+  // na chave primária e derrubaria a tela da ofensiva.
+  if (n.n === 1) ok('proteger o mesmo dia duas vezes não gasta dois protetores');
+  else bad('protetor duplicado', n.n);
+
+  gravar('2026-07-28');
+  const dias = db
+    .prepare('SELECT day FROM streak_shields ORDER BY day')
+    .all()
+    .map((l) => l.day);
+  if (JSON.stringify(dias) === JSON.stringify(['2026-07-28', '2026-07-29']))
+    ok('e dias diferentes são linhas diferentes');
+  else bad('dias protegidos', JSON.stringify(dias));
+
+  // A tabela é separada de study_days de propósito: "quantos dias você estudou"
+  // não pode passar a contar os dias em que você não estudou.
+  const estudados = db.prepare('SELECT COUNT(*) AS n FROM study_days').get();
+  if (estudados.n === 0) ok('proteger um dia não o transforma em dia estudado');
+  else bad('protetor virou estudo', estudados.n);
 }
 
 /* --------------------------------------- apagar a nota apaga as cartas dela */

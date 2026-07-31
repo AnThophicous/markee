@@ -121,9 +121,21 @@ export type InlineToken =
   | { type: 'bold'; text: string }
   | { type: 'italic'; text: string }
   | { type: 'code'; text: string }
-  | { type: 'link'; text: string; href: string };
+  | { type: 'mark'; text: string }
+  | { type: 'link'; text: string; href: string }
+  /** Ligação para outra nota do próprio aparelho: `[[Fotossíntese]]`. */
+  | { type: 'nota'; text: string };
 
-const INLINE_PATTERN = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(\*[^*]+\*)|(_[^_]+_)/g;
+/**
+ * A ordem das alternativas É a precedência, e mexer nela quebra coisas.
+ *
+ * `[[nota]]` vem ANTES de `[texto](link)` porque o segundo casaria o `[nota]`
+ * de dentro do primeiro e sobraria um colchete solto na tela. `**negrito**`
+ * vem antes de `*itálico*` pelo mesmo motivo. Código cru vem primeiro de todos
+ * porque dentro de crase nada mais deve valer.
+ */
+const INLINE_PATTERN =
+  /(`[^`]+`)|(\[\[[^\]]+\]\])|(\*\*[^*]+\*\*)|(==[^=]+==)|(\[[^\]]+\]\([^)]+\))|(\*[^*]+\*)|(_[^_]+_)/g;
 
 export function tokenizeInline(text: string): InlineToken[] {
   const tokens: InlineToken[] = [];
@@ -137,8 +149,12 @@ export function tokenizeInline(text: string): InlineToken[] {
     const raw = match[0];
     if (raw.startsWith('`')) {
       tokens.push({ type: 'code', text: raw.slice(1, -1) });
+    } else if (raw.startsWith('[[')) {
+      tokens.push({ type: 'nota', text: raw.slice(2, -2).trim() });
     } else if (raw.startsWith('**')) {
       tokens.push({ type: 'bold', text: raw.slice(2, -2) });
+    } else if (raw.startsWith('==')) {
+      tokens.push({ type: 'mark', text: raw.slice(2, -2) });
     } else if (raw.startsWith('[')) {
       const linkMatch = raw.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       tokens.push({ type: 'link', text: linkMatch?.[1] ?? raw, href: linkMatch?.[2] ?? '' });
@@ -153,4 +169,56 @@ export function tokenizeInline(text: string): InlineToken[] {
   }
 
   return tokens;
+}
+
+/**
+ * Os nomes de nota citados no texto, sem repetição.
+ *
+ * Serve para as "menções": ao abrir uma nota, saber quais outras apontam para
+ * ela. A varredura é do texto cru e não dos blocos, porque o que interessa é
+ * "esta nota cita aquela" — em que parágrafo isso aconteceu não muda nada.
+ *
+ * Pula bloco de código cercado: `[[isto]]` dentro de ``` é exemplo de sintaxe,
+ * não ligação. Sem isso, um tutorial de markdown escrito no app criaria
+ * menções para notas que ninguém quis citar.
+ */
+export function ligacoesDe(conteudo: string): string[] {
+  const nomes = new Set<string>();
+  let dentroDeCodigo = false;
+
+  for (const linha of conteudo.split('\n')) {
+    if (linha.trimStart().startsWith('```')) {
+      dentroDeCodigo = !dentroDeCodigo;
+      continue;
+    }
+    if (dentroDeCodigo) continue;
+
+    for (const achado of linha.matchAll(/\[\[([^\]]+)\]\]/g)) {
+      const nome = achado[1].trim();
+      if (nome) nomes.add(nome);
+    }
+  }
+
+  return [...nomes];
+}
+
+/**
+ * Compara nomes de nota do jeito que uma pessoa compararia.
+ *
+ * Sem acento e sem caixa: quem escreve `[[fotossintese]]` às pressas está
+ * falando da nota "Fotossíntese", e exigir o acento certo faria a ligação
+ * falhar exatamente para quem escreve rápido — que é todo mundo em sala de
+ * aula. Espaços repetidos também caem, porque colar texto traz espaço duplo
+ * sem ninguém perceber.
+ */
+export function chaveDeNota(titulo: string): string {
+  return titulo
+    .normalize('NFD')
+    // A faixa dos acentos combinantes, escrita em escapes: o mesmo intervalo
+    // digitado com os caracteres crus vira lixo em qualquer editor que
+    // normalize o arquivo, e o defeito só apareceria em runtime.
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
 }

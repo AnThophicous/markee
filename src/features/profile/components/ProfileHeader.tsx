@@ -1,7 +1,8 @@
-import { Image, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 import { AppText } from '@/components/AppText';
+import { Foto } from '@/components/Foto';
 import { GLOW_SHADOW, ThemeBanner } from '@/components/ThemeBanner';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { Profile } from '../services/profile.service';
@@ -51,7 +52,7 @@ export function ProfileHeader({
               style={{ width: AVATAR, height: AVATAR }}
             >
               {profile.avatarUrl ? (
-                <Image source={{ uri: profile.avatarUrl }} className="h-full w-full rounded-full" />
+                <Foto uri={profile.avatarUrl} style={{ width: '100%', height: '100%' }} raio={AVATAR} />
               ) : (
                 <View
                   className="h-full w-full items-center justify-center rounded-full"

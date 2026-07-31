@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Image, View, useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { Foto } from '@/components/Foto';
 import { ThemeEffect } from '@/components/ThemeEffect';
 import type { VisualTheme } from '@/theme/visual';
 
@@ -47,7 +48,7 @@ export function ThemeBanner({ theme, imageUrl, height = 168, width, children }: 
       )}
 
       {imageUrl ? (
-        <Image source={{ uri: imageUrl }} className="absolute inset-0 h-full w-full" resizeMode="cover" />
+        <Foto uri={imageUrl} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
       ) : null}
 
       <ThemeEffect effect={theme.effect} width={effectiveWidth} height={height} />

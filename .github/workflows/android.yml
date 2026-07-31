@@ -87,8 +87,9 @@ jobs:
         # conversão markdown↔blocos, geometria dos gráficos, migrações do banco
         # local, legibilidade das cores de cargo, a faixa de avisos, a paleta, a
         # navegação, o carrossel, a separação da aula, a revisão espaçada e a
-        # ofensiva, o extrato de crédito, as ferramentas de escrita da IA e o
-        # corte da aula gravada e as medalhas.
+        # ofensiva, o extrato de crédito, as ferramentas de escrita da IA, o
+        # corte da aula gravada, as medalhas, os emblemas e efeitos, as
+        # conquistas de ofensiva, os afiliados e as ligações entre notas.
         #
         # Os que mais pegam defeito silencioso: a conversão instável faria a nota
         # mudar sozinha a cada abertura; um NaN na geometria faz o gráfico sumir
@@ -96,6 +97,14 @@ jobs:
         # metade; uma cor de cargo sem contraste some no fundo sem avisar; e um
         # SM-2 sem piso de facilidade faz a mesma carta voltar todo dia para
         # sempre, o que só aparece semanas depois de o app estar em uso.
+        #
+        # Três dos novos conferem listas escritas em DOIS lugares, que é a
+        # família de defeito mais chata deste projeto: um efeito que existe no
+        # TypeScript e não na whitelist do banco faz o salvamento falhar na cara
+        # da pessoa; um que existe nos dois mas ninguém desenhou salva certo e
+        # não aparece — sem erro nenhum para investigar. O de afiliados lê o SQL
+        # atrás de concessão a mais: um `grant execute` em record_pro_purchase e
+        # qualquer conta passa a poder se dar comissão.
         #
         # Falhar aqui para o build antes de gastar 15 minutos compilando.
         run: |
@@ -118,6 +127,10 @@ jobs:
           node scripts/ai-write-test.js
           node scripts/record-test.js
           node scripts/medals-test.js
+          node scripts/emblemas-test.js
+          node scripts/ofensiva-test.js
+          node scripts/afiliados-test.js
+          node scripts/ligacoes-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos

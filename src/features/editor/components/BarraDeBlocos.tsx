@@ -37,6 +37,7 @@ type BarraDeBlocosProps = {
   onInserir: () => void;
   onTipoRapido: (tipo: TipoBloco) => void;
   onImagem: () => void;
+  onLigar: () => void;
   onPronto: () => void;
 };
 
@@ -45,6 +46,7 @@ export function BarraDeBlocos({
   onInserir,
   onTipoRapido,
   onImagem,
+  onLigar,
   onPronto,
 }: BarraDeBlocosProps) {
   const { tokens } = useTheme();
@@ -92,6 +94,18 @@ export function BarraDeBlocos({
           <Feather name="image" size={15} color={tokens.ink} />
           <AppText variant="small" className="text-ink-light dark:text-ink-dark">
             Foto
+          </AppText>
+        </Pressable>
+
+        {/* "Citar" e nao "Link": link, para quem escreve, e o endereco de um
+            site. O que este botao faz e apontar para outra nota sua. */}
+        <Pressable
+          onPress={onLigar}
+          className="h-10 flex-row items-center gap-1.5 rounded-xl px-2.5 active:bg-subtle-light dark:active:bg-subtle-dark"
+        >
+          <Feather name="link" size={15} color={tokens.ink} />
+          <AppText variant="small" className="text-ink-light dark:text-ink-dark">
+            Citar
           </AppText>
         </Pressable>
       </ScrollView>

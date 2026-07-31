@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { Image, Linking, Pressable, View, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
@@ -11,11 +11,47 @@ import { lerGrafico } from '../model/blocks';
 import { parseMarkdown, tokenizeInline, type InlineToken } from '../utils/markdown-parser';
 import { Grafico } from './Grafico';
 
+/**
+ * Como abrir uma nota citada com `[[colchetes]]`.
+ *
+ * Vai por contexto e não por propriedade porque `InlineText` é chamado de sete
+ * lugares diferentes aqui dentro — parágrafo, item de lista, citação, célula de
+ * tabela, item de checklist. Passar a função de mão em mão por todos eles
+ * encheria cada assinatura de um argumento que só um token usa, e a primeira
+ * chamada esquecida viraria uma ligação que não abre nada, em silêncio.
+ *
+ * Nulo quer dizer "sem navegação": o texto aparece marcado mas não é tocável.
+ * É o caso da prévia dentro do editor, onde tocar já significa outra coisa.
+ */
+const AbrirNota = createContext<((titulo: string) => void) | null>(null);
+
 function InlineText({ tokens, className }: { tokens: InlineToken[]; className?: string }) {
+  const abrirNota = useContext(AbrirNota);
+
   return (
     <AppText variant="body" className={className}>
       {tokens.map((token, index) => {
         switch (token.type) {
+          case 'nota':
+            return (
+              <AppText
+                key={index}
+                className="text-accent"
+                style={{ textDecorationLine: 'underline' }}
+                onPress={abrirNota ? () => abrirNota(token.text) : undefined}
+              >
+                {token.text}
+              </AppText>
+            );
+          case 'mark':
+            // Fundo amarelo em vez de cor de texto: marca-texto é sobre o fundo,
+            // e trocar a cor da letra some no tema escuro.
+            return (
+              <AppText key={index} style={{ backgroundColor: '#F9AB0055' }}>
+                {' '}
+                {token.text}{' '}
+              </AppText>
+            );
           case 'bold':
             return (
               <AppText key={index} variant="bodyEmphasis">
@@ -54,11 +90,33 @@ function InlineText({ tokens, className }: { tokens: InlineToken[]; className?: 
   );
 }
 
-export function MarkdownPreview({ content }: { content: string }) {
+export function MarkdownPreview({
+  content,
+  onAbrirNota,
+}: {
+  content: string;
+  onAbrirNota?: (titulo: string) => void;
+}) {
   const { tokens } = useTheme();
   const { width } = useWindowDimensions();
   const blocks = useMemo(() => parseMarkdown(content), [content]);
 
+  return (
+    <AbrirNota.Provider value={onAbrirNota ?? null}>
+      <MarkdownCorpo blocks={blocks} tokens={tokens} width={width} />
+    </AbrirNota.Provider>
+  );
+}
+
+function MarkdownCorpo({
+  blocks,
+  tokens,
+  width,
+}: {
+  blocks: ReturnType<typeof parseMarkdown>;
+  tokens: ReturnType<typeof useTheme>['tokens'];
+  width: number;
+}) {
   return (
     <View className="gap-0.5 px-5 pb-10">
       {blocks.map((block, index) => {

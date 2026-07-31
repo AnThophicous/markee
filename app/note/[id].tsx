@@ -12,9 +12,11 @@ import { MarkdownPreview } from '@/features/editor/components/MarkdownPreview';
 import { FolderPickerSheet } from '@/features/folders/components/FolderPickerSheet';
 import { CategorySheet } from '@/features/categories/components/CategorySheet';
 import { NoteActionsSheet } from '@/features/notes/components/NoteActionsSheet';
+import { Ligacoes } from '@/features/notes/components/Ligacoes';
 import { NoteLookSheet } from '@/features/notes/components/NoteLookSheet';
 import { CardsSheet } from '@/features/review/components/CardsSheet';
 import { useNote } from '@/features/notes/hooks/useNote';
+import { abrirOuCriar } from '@/features/notes/services/ligacoes.service';
 import { useSoftDeleteNote, useUpdateNote } from '@/features/notes/hooks/useNoteMutations';
 import { ReminderSheet } from '@/features/reminders/components/ReminderSheet';
 import { exportNoteAsMarkdown } from '@/services/export.service';
@@ -78,6 +80,21 @@ export default function NoteEditorScreen() {
     if (!id) return;
     softDeleteNote.mutate(id);
     router.back();
+  };
+
+  /**
+   * Abrir uma nota citada com `[[colchetes]]`.
+   *
+   * Salva ANTES de sair. Sem isso, tocar numa ligação escrita há menos de 600ms
+   * — o intervalo do salvamento automático — sairia da tela com a ligação ainda
+   * não gravada, e ela sumiria ao voltar. É justamente o caso mais comum:
+   * escrever `[[Ciclo de Krebs]]` e tocar em seguida.
+   */
+  const abrirNotaCitada = (titulo: string) => {
+    saveNow();
+    void abrirOuCriar(titulo).then((outra) =>
+      router.push({ pathname: '/note/[id]', params: { id: outra } })
+    );
   };
 
   const enterEditMode = () => setMode('edit');
@@ -163,9 +180,20 @@ export default function NoteEditorScreen() {
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
           keyboardShouldPersistTaps="handled"
         >
+          {/* O Pressable envolve SÓ o texto, e não as ligações lá embaixo:
+              envolvendo tudo, tocar numa nota mencionada abriria o modo de
+              escrita em vez de navegar — o toque de fora ganha do de dentro. */}
           <Pressable onPress={enterEditMode}>
-            <MarkdownPreview content={content} />
+            <MarkdownPreview content={content} onAbrirNota={abrirNotaCitada} />
           </Pressable>
+
+          <Ligacoes
+            noteId={id}
+            titulo={title}
+            conteudo={content}
+            onAbrir={(outra) => router.push({ pathname: '/note/[id]', params: { id: outra } })}
+            onCriar={abrirNotaCitada}
+          />
         </ScrollView>
       ) : (
         <BlockEditor
@@ -174,6 +202,7 @@ export default function NoteEditorScreen() {
           // só na montagem — continuaria mostrando o conteúdo da nota anterior.
           key={id}
           markdownInicial={content}
+          noteId={id}
           onChange={setContent}
           onRequestDone={exitEditMode}
           autoFocus={startedBlank.current}

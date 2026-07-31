@@ -18,6 +18,7 @@ import { BlockRow } from './BlockRow';
 import { BlocoMenuSheet } from './BlocoMenuSheet';
 import { GraficoEditorSheet } from './GraficoEditorSheet';
 import { InserirBlocoSheet } from './InserirBlocoSheet';
+import { LigarNotaSheet } from './LigarNotaSheet';
 import { BarraDeBlocos } from './BarraDeBlocos';
 
 /**
@@ -42,6 +43,8 @@ type BlockEditorProps = {
   onRequestDone: () => void;
   autoFocus?: boolean;
   bottomInset?: number;
+  /** A nota aberta, para ela não se oferecer como destino de citação. */
+  noteId?: string;
 };
 
 export function BlockEditor({
@@ -50,6 +53,7 @@ export function BlockEditor({
   onRequestDone,
   autoFocus,
   bottomInset = 0,
+  noteId,
 }: BlockEditorProps) {
   const { tokens } = useTheme();
   const { width } = useWindowDimensions();
@@ -59,6 +63,7 @@ export function BlockEditor({
 
   const [menuDoBloco, setMenuDoBloco] = useState<string | null>(null);
   const [inserirVisivel, setInserirVisivel] = useState(false);
+  const [ligarVisivel, setLigarVisivel] = useState(false);
   const [graficoEmEdicao, setGraficoEmEdicao] = useState<string | null>(null);
 
   const [enviando, setEnviando] = useState(false);
@@ -188,6 +193,41 @@ export function BlockEditor({
 
     if (ehDeTexto(tipo)) focar(novo.id);
     if (tipo === 'grafico') setGraficoEmEdicao(novo.id);
+  };
+
+  /**
+   * Escreve `[[Título]]` no fim do bloco em que se estava escrevendo.
+   *
+   * No FIM, e não onde o cursor estava, porque o editor não guarda a posição do
+   * cursor — os blocos guardam texto e mais nada. Emendar no fim é o que a
+   * pessoa quer em quase todo caso, já que se cita ao terminar a frase; e é
+   * previsível, que importa mais do que ser esperto na metade das vezes.
+   *
+   * Sem bloco ativo (a barra também aparece com o teclado fechado), a citação
+   * vira um bloco novo em vez de se perder.
+   */
+  const citarNota = (titulo: string) => {
+    const marcacao = `[[${titulo}]]`;
+    if (!ativo) {
+      inserirDepoisDoAtivo('texto');
+      // O bloco recém-criado ainda não está no estado desta renderização, então
+      // o texto entra no passo seguinte, pelo próprio setBlocos.
+      setBlocos((atuais) => {
+        const ultimo = atuais[atuais.length - 1];
+        return atuais.map((b) => (b.id === ultimo.id ? { ...b, texto: marcacao } : b));
+      });
+      return;
+    }
+
+    setBlocos((atuais) =>
+      atuais.map((bloco) => {
+        if (bloco.id !== ativo) return bloco;
+        // Espaço antes só quando já há texto e ele não termina em espaço: sem
+        // isso a citação gruda na última palavra.
+        const separador = bloco.texto && !bloco.texto.endsWith(' ') ? ' ' : '';
+        return { ...bloco, texto: bloco.texto + separador + marcacao };
+      })
+    );
   };
 
   const mudarTipo = (id: string, tipo: TipoBloco) => {
@@ -355,7 +395,15 @@ export function BlockEditor({
         onInserir={() => setInserirVisivel(true)}
         onTipoRapido={(tipo) => (ativo ? mudarTipo(ativo, tipo) : inserirDepoisDoAtivo(tipo))}
         onImagem={() => void inserirImagem()}
+        onLigar={() => setLigarVisivel(true)}
         onPronto={onRequestDone}
+      />
+
+      <LigarNotaSheet
+        visible={ligarVisivel}
+        onClose={() => setLigarVisivel(false)}
+        noteId={noteId}
+        onEscolher={citarNota}
       />
 
       <InserirBlocoSheet

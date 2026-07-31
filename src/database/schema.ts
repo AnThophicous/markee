@@ -186,3 +186,23 @@ CREATE TABLE IF NOT EXISTS study_days (
   minutes_recorded INTEGER NOT NULL DEFAULT 0
 );
 `;
+
+/**
+ * Os dias que um protetor cobriu.
+ *
+ * Tabela separada de study_days de propósito. Uma coluna "protegido" lá dentro
+ * misturaria duas coisas diferentes — o dia que a pessoa estudou e o dia que
+ * ela não estudou mas não perdeu — e a conta de "quantos dias você estudou"
+ * passaria a precisar lembrar de filtrar. Separado, `select count(*) from
+ * study_days` continua querendo dizer exatamente o que parece.
+ *
+ * `spent_at` guarda quando o protetor foi gasto, e não o dia coberto: serve
+ * para a tela poder dizer "usamos um protetor terça-feira" em vez de a pessoa
+ * descobrir sozinha que a ofensiva sobreviveu por mágica.
+ */
+export const MIGRATION_006_SHIELDS = `
+CREATE TABLE IF NOT EXISTS streak_shields (
+  day TEXT PRIMARY KEY,
+  spent_at INTEGER NOT NULL
+);
+`;

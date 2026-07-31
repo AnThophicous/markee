@@ -24,7 +24,19 @@ export type VisualEffect =
   /** As cores deslizam de um lado para o outro. */
   | 'shift'
   /** O gradiente gira devagar. */
-  | 'spin';
+  | 'spin'
+  /** Manchas de luz derivando devagar, como aurora. */
+  | 'aurora'
+  /** Arco-íris de holograma que muda conforme "inclina". */
+  | 'holo'
+  /** Contorno aceso, respirando. */
+  | 'neon'
+  /** Faixas que sobem e descem como água. */
+  | 'ondas'
+  /** Metal escovado: uma linha de luz dura correndo. */
+  | 'metal'
+  /** Veludo: brilho macio que troca de lado. */
+  | 'veludo';
 
 /** Como o grupo aparece para os outros, na lista e no convite. */
 export type CardStyle = 'plain' | 'tinted' | 'cover';
@@ -59,9 +71,37 @@ export const EFFECTS: Record<VisualEffect, EffectInfo> = {
   pulse: { label: 'Pulso', hint: 'O fundo respira', pro: true },
   shift: { label: 'Deriva', hint: 'As cores deslizam', pro: true },
   spin: { label: 'Giro', hint: 'O gradiente gira devagar', pro: true },
+  aurora: { label: 'Aurora', hint: 'Manchas de luz derivando', pro: true },
+  holo: { label: 'Holograma', hint: 'Arco-íris que muda de ângulo', pro: true },
+  neon: { label: 'Neon', hint: 'Contorno aceso, respirando', pro: true },
+  ondas: { label: 'Ondas', hint: 'Faixas subindo como água', pro: true },
+  metal: { label: 'Metal', hint: 'Linha de luz dura correndo', pro: true },
+  veludo: { label: 'Veludo', hint: 'Brilho macio trocando de lado', pro: true },
 };
 
-export const EFFECT_ORDER: VisualEffect[] = ['none', 'shine', 'glow', 'sweep', 'pulse', 'shift', 'spin'];
+/**
+ * A ordem da lista no seletor, e ela não é alfabética nem a de criação.
+ *
+ * Os discretos vêm primeiro e os chamativos por último. Quem abre o seletor
+ * pela primeira vez toca no que está no topo, e um efeito discreto no topo faz
+ * a pessoa continuar descendo; o holograma logo de cara faria metade fechar a
+ * tela achando o app espalhafatoso.
+ */
+export const EFFECT_ORDER: VisualEffect[] = [
+  'none',
+  'shine',
+  'glow',
+  'veludo',
+  'pulse',
+  'shift',
+  'ondas',
+  'sweep',
+  'metal',
+  'aurora',
+  'neon',
+  'spin',
+  'holo',
+];
 
 export const CARD_STYLES: Record<CardStyle, { label: string; hint: string; pro: boolean }> = {
   plain: { label: 'Simples', hint: 'Só o ícone e o nome', pro: false },

@@ -1,4 +1,4 @@
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -105,6 +105,23 @@ export default function UpgradeScreen() {
             <Button label="Assinar o Pro" onPress={() => router.push('/upgrade-soon')} />
           </View>
         ) : null}
+
+        {/* Fica aqui embaixo, e não no topo: quem abriu esta tela veio ver o
+            Pro, e oferecer "ganhe dinheiro indicando" antes de explicar o
+            produto é o jeito mais rápido de parecer esquema de pirâmide. */}
+        <Pressable
+          onPress={() => router.push('/afiliados')}
+          className="mx-4 mt-6 flex-row items-center gap-3 rounded-2xl bg-surface-light p-4 active:opacity-70 dark:bg-surface-dark"
+        >
+          <Feather name="users" size={18} color={tokens.accent} />
+          <View className="flex-1">
+            <AppText variant="body">Indique e ganhe</AppText>
+            <AppText variant="small">
+              Quem assinar pelo seu link te dá uma parte da mensalidade.
+            </AppText>
+          </View>
+          <Feather name="chevron-right" size={18} color={tokens.muted} />
+        </Pressable>
       </ScrollView>
     </View>
   );

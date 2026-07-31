@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { Sheet } from '@/components/Sheet';
 import { ThemePickerSheet } from '@/components/ThemePickerSheet';
 import { useSession } from '@/features/auth/hooks/useSession';
 import { signOut } from '@/features/auth/services/auth.service';
@@ -14,6 +15,7 @@ import { useIsPro, useMyUsage } from '@/features/billing/hooks/useMyUsage';
 import { ScreenHeader } from '@/features/navigation/components/ScreenHeader';
 import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
 import { StatusSheet } from '@/features/profile/components/StatusSheet';
+import { formatoDaImagem, gifEhAnimado } from '@/features/profile/services/profile.service';
 import { useProfile, useUpdateProfile, useUploadProfileImage } from '@/features/profile/hooks/useProfile';
 import { useBottomInset } from '@/hooks/useBottomInset';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -21,6 +23,23 @@ import { describeProError, type VisualTheme } from '@/theme/visual';
 import { prettyCode } from '@/utils/markee-link';
 
 const BIO_LIMIT = 300;
+
+/**
+ * A imagem escolhida vai ficar parada?
+ *
+ * Só sabe dizer de GIF. Qualquer outro formato devolve `false` — "não sei" e
+ * "não está parada" dão no mesmo aqui, porque o resultado só decide se um aviso
+ * aparece. Errar para o lado de calar é melhor do que avisar errado.
+ */
+async function pareceParada(uri: string): Promise<boolean> {
+  try {
+    const bytes = new Uint8Array(await (await fetch(uri)).arrayBuffer());
+    if (formatoDaImagem(bytes)?.mime !== 'image/gif') return false;
+    return !gifEhAnimado(bytes);
+  } catch {
+    return false;
+  }
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -40,7 +59,10 @@ export default function ProfileScreen() {
   const [bio, setBio] = useState('');
   const [themeVisible, setThemeVisible] = useState(false);
   const [statusVisible, setStatusVisible] = useState(false);
+  const [fotoAberta, setFotoAberta] = useState(false);
+  const [alvoDaFoto, setAlvoDaFoto] = useState<'avatar' | 'banner'>('avatar');
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -56,8 +78,20 @@ export default function ProfileScreen() {
     if (!sessionLoading && !user) router.replace('/login');
   }, [sessionLoading, user, router]);
 
-  const pick = async (kind: 'avatar' | 'banner') => {
+  /**
+   * Escolher e enviar a imagem.
+   *
+   * `animada` muda duas coisas que parecem detalhe e não são: desliga o recorte
+   * e sobe a qualidade para 1. Recortar reescreve o arquivo, e reescrever um
+   * GIF achata a animação num quadro só — era exatamente isso que acontecia
+   * antes, silenciosamente, com quem assinava o Pro para ter foto animada.
+   *
+   * O preço de não recortar é a pessoa não escolher o enquadramento. Vale a
+   * troca: quem escolhe "animada" está atrás do movimento, não do corte.
+   */
+  const pick = async (kind: 'avatar' | 'banner', animada = false) => {
     setError(null);
+    setAviso(null);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       setError('Precisamos de acesso às suas fotos.');
@@ -66,11 +100,19 @@ export default function ProfileScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
+      allowsEditing: !animada,
       aspect: kind === 'avatar' ? [1, 1] : [3, 1],
-      quality: 0.85,
+      quality: animada ? 1 : 0.85,
     });
     if (result.canceled) return;
+
+    if (animada) {
+      const parada = await pareceParada(result.assets[0].uri);
+      // Avisa e envia mesmo assim: pode ser que a pessoa queira mesmo aquela
+      // imagem. Barrar aqui seria decidir por ela; não avisar seria deixá-la
+      // achando que o recurso pago está quebrado.
+      if (parada) setAviso('Essa imagem não tem animação — vai ficar parada, como uma foto normal.');
+    }
 
     uploadImage.mutate(
       { kind, uri: result.assets[0].uri },
@@ -81,6 +123,11 @@ export default function ProfileScreen() {
         },
       }
     );
+  };
+
+  const escolher = (kind: 'avatar' | 'banner') => {
+    setAlvoDaFoto(kind);
+    setFotoAberta(true);
   };
 
   const save = () => {
@@ -138,8 +185,8 @@ export default function ProfileScreen() {
         <ProfileHeader
           profile={preview}
           isPro={isPro}
-          onPressAvatar={() => pick('avatar')}
-          onPressBanner={() => pick('banner')}
+          onPressAvatar={() => escolher('avatar')}
+          onPressBanner={() => escolher('banner')}
           onPressStatus={() => setStatusVisible(true)}
         />
 
@@ -228,6 +275,18 @@ export default function ProfileScreen() {
           </Pressable>
 
           <Pressable
+            onPress={() => router.push('/afiliados')}
+            className="flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+          >
+            <Feather name="users" size={18} color={tokens.accent} />
+            <View className="flex-1">
+              <AppText variant="body">Indique e ganhe</AppText>
+              <AppText variant="small">Comissão de quem assinar pelo seu link.</AppText>
+            </View>
+            <Feather name="chevron-right" size={18} color={tokens.muted} />
+          </Pressable>
+
+          <Pressable
             onPress={() => router.push('/upgrade')}
             className="flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
           >
@@ -245,6 +304,8 @@ export default function ProfileScreen() {
             <AppText variant="caption" className="text-danger">
               {error}
             </AppText>
+          ) : aviso ? (
+            <AppText variant="caption">{aviso}</AppText>
           ) : saved ? (
             <AppText variant="caption" className="text-accent">
               Perfil salvo.
@@ -283,6 +344,63 @@ export default function ProfileScreen() {
           });
         }}
       />
+
+      {/* A opção animada aparece para todo mundo, com a etiqueta PRO, e não só
+          para quem já assina. Recurso pago escondido de quem não paga não vende
+          nada: ninguém procura o que não sabe que existe. */}
+      <Sheet visible={fotoAberta} onClose={() => setFotoAberta(false)} edge="bottom">
+        <AppText variant="heading" className="mb-1 px-1">
+          {alvoDaFoto === 'avatar' ? 'Sua foto' : 'Sua capa'}
+        </AppText>
+        <AppText variant="small" className="mb-3 px-1">
+          {alvoDaFoto === 'avatar'
+            ? 'Como você aparece nos grupos e no chat.'
+            : 'A faixa colorida no topo do perfil.'}
+        </AppText>
+
+        <Pressable
+          onPress={() => {
+            setFotoAberta(false);
+            pick(alvoDaFoto);
+          }}
+          className="flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+        >
+          <Feather name="crop" size={18} color={tokens.accent} />
+          <View className="flex-1">
+            <AppText variant="body">Foto normal</AppText>
+            <AppText variant="small">Você escolhe o enquadramento.</AppText>
+          </View>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            setFotoAberta(false);
+            if (isPro) pick(alvoDaFoto, true);
+            else router.push('/upgrade');
+          }}
+          className="mt-2 flex-row items-center gap-3 rounded-2xl bg-surface-light px-4 py-3.5 active:opacity-70 dark:bg-surface-dark"
+        >
+          <Feather name="film" size={18} color={isPro ? tokens.accent : tokens.muted} />
+          <View className="flex-1">
+            <View className="flex-row items-center gap-2">
+              <AppText variant="body" style={{ opacity: isPro ? 1 : 0.6 }}>
+                Imagem animada
+              </AppText>
+              {!isPro ? (
+                <View className="rounded-full bg-accent px-2 py-0.5">
+                  <AppText style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>PRO</AppText>
+                </View>
+              ) : null}
+            </View>
+            <AppText variant="small">
+              {isPro
+                ? 'GIF, sem recorte para a animação não se perder.'
+                : 'GIF que mexe de verdade, no plano Pro.'}
+            </AppText>
+          </View>
+          <Feather name="chevron-right" size={18} color={tokens.muted} />
+        </Pressable>
+      </Sheet>
 
       <ThemePickerSheet
         visible={themeVisible}
