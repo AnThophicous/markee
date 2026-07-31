@@ -40,7 +40,10 @@ export function NoteListItem({
   const { tokens } = useTheme();
   const translateX = useSharedValue(0);
 
+  // Worklet: quem chama é o fim do arrasto, que roda na thread de UI. Sem a
+  // diretiva, soltar a nota sem abrir as ações derruba o app.
   const close = () => {
+    'worklet';
     translateX.value = withSpring(0, SPRING);
   };
 

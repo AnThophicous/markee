@@ -65,7 +65,12 @@ export function Sheet({ visible, onClose, edge = 'bottom', children, widthClassN
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  // Worklet porque o gesto de arrastar chama isto da thread de UI, e função
+  // comum chamada de lá derruba o processo inteiro ("Tried to synchronously
+  // call a Remote Function"). Continua servindo ao onPress e ao botão voltar do
+  // Android: worklet chamado da thread de JavaScript roda como qualquer função.
   const close = () => {
+    'worklet';
     translate.value = withTiming(offscreen, CLOSE);
     backdrop.value = withTiming(0, CLOSE, () => {
       runOnJS(onClose)();

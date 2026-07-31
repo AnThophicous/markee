@@ -9,6 +9,18 @@
  *
  * O anel é infinito: passar do último volta ao primeiro pelo caminho mais
  * curto, nos dois sentidos. Não existe "fim da lista".
+ *
+ * QUASE TUDO AQUI É WORKLET, e isso não é detalhe de estilo.
+ *
+ * O corpo de `useAnimatedStyle` e os retornos de gesto rodam num runtime de
+ * JavaScript separado, na thread de UI. Uma função sem a diretiva `'worklet'`
+ * não existe nesse runtime: o plugin do Babel a captura como "remote function",
+ * e chamá-la de lá derruba o processo com "Tried to synchronously call a Remote
+ * Function". Como o carrossel é a primeira coisa que a tela inicial desenha, o
+ * app morria antes de abrir — e o Android só dizia "Markee parou".
+ *
+ * A diretiva não impede o uso normal: worklet chamado da thread de JavaScript
+ * roda como qualquer função. Por isso os testes em Node continuam valendo.
  */
 
 /** Onde cada cartão fica em relação ao do meio. */
@@ -33,6 +45,7 @@ export type Posicao = {
  * pessoa arrastasse para trás a partir do primeiro item.
  */
 export function distanciaNoAnel(indice: number, ativo: number, total: number): number {
+  'worklet';
   if (total <= 0) return 0;
 
   const bruta = (((indice - ativo) % total) + total) % total;
@@ -59,6 +72,7 @@ export function posicaoDoCartao(
   total: number,
   deslocamento = 0
 ): Posicao {
+  'worklet';
   const slot = distanciaNoAnel(indice, ativo, total) - deslocamento;
   const distancia = Math.abs(slot);
 
@@ -83,6 +97,10 @@ export function posicaoDoCartao(
  * Só os que aparecem, mais um de cada lado que está entrando ou saindo. Numa
  * lista de trinta categorias, desenhar as trinta a cada quadro do arrasto é o
  * que transforma um carrossel bonito numa animação travada.
+ *
+ * Esta é a única que NÃO é worklet: ela decide quais componentes existem, o que
+ * é decisão do React, na thread de JavaScript. Marcá-la só faria o array ser
+ * copiado para o outro runtime à toa.
  */
 export function visiveis(ativo: number, total: number, alcance = 2): number[] {
   if (total <= 0) return [];
@@ -110,6 +128,7 @@ export function destinoAoSoltar(
   larguraDoPasso: number,
   total: number
 ): number {
+  'worklet';
   if (total <= 0) return 0;
 
   /**

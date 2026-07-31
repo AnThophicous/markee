@@ -106,6 +106,16 @@ jobs:
         # atrás de concessão a mais: um `grant execute` em record_pro_purchase e
         # qualquer conta passa a poder se dar comissão.
         #
+        # O worklets-test é o mais importante da lista, e nasceu de um app que
+        # não abria. O Reanimated roda `useAnimatedStyle` e os retornos de gesto
+        # num runtime separado, na thread de UI; chamar de lá uma função sem a
+        # diretiva 'worklet' encerra o processo. TypeScript aprova, ESLint
+        # aprova, e os 33 testes da matemática do carrossel passam — em Node não
+        # existe thread de UI. O defeito só aparece no aparelho, e como o
+        # carrossel é a tela inicial, aparecia como "Markee parou", sem mais
+        # nada. Três lugares estavam assim: o carrossel, o arrastar de qualquer
+        # folha e o arrastar de nota na lista.
+        #
         # Falhar aqui para o build antes de gastar 15 minutos compilando.
         run: |
           node scripts/qr-test.js
@@ -131,6 +141,7 @@ jobs:
           node scripts/ofensiva-test.js
           node scripts/afiliados-test.js
           node scripts/ligacoes-test.js
+          node scripts/worklets-test.js
 
       - name: Gerar o projeto Android
         # A pasta android/ não fica no repositório: é derivada do app.json e dos
