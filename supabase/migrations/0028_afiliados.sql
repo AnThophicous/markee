@@ -64,12 +64,27 @@ create index if not exists idx_profiles_referred_by
  * O jeito que isso falha importa: coluna nova nasce SEM permissão de escrita e
  * a tela dá erro na primeira tentativa. É chato e é o lado certo de errar —
  * o contrário seria uma coluna sensível ficando aberta em silêncio.
+ *
+ * A lista abaixo é EXATAMENTE o que `updateProfile` envia, conferido contra o
+ * código do aplicativo, e nada além disso:
+ *
+ *   - `public_key` e `friend_code` saem porque quem escreve neles é
+ *     `set_public_key` e `regenerate_friend_code`, as duas SECURITY DEFINER e
+ *     de dono `postgres` — continuam funcionando sem a permissão direta. Com a
+ *     permissão direta, por outro lado, dava para trocar a chave pública de
+ *     ponta a ponta por uma nossa e ler conversa alheia.
+ *   - `id` e `created_at` saem porque identidade e idade da conta não são campo
+ *     de formulário. `created_at` alimenta o emblema de veterano; solto, o
+ *     emblema viraria enfeite comprável com uma chamada de API.
+ *
+ * `anon` também perde o UPDATE, e não ganha nada de volta: visitante sem conta
+ * não tem perfil para editar. A política de RLS já barrava, mas privilégio e
+ * política são duas trancas diferentes, e a mais barata das duas estava aberta.
  */
-revoke update on public.profiles from authenticated;
+revoke update on public.profiles from anon, authenticated;
 grant update (
   display_name, avatar_url, banner_url, bio, pronouns, headline,
   profile_theme, status_text, status_emoji, status_until,
-  public_key, encrypted, nonce,
   updated_at
 ) on public.profiles to authenticated;
 
@@ -373,4 +388,11 @@ returns jsonb language sql stable security definer set search_path = public as $
 $$;
 
 revoke all on function public.meu_afiliado() from public, anon;
+
+-- Conta interna do resgate. O aplicativo nunca chama: quem precisa do número é
+-- `meu_afiliado`, que já devolve pronto, e `resgatar_comissao`, que roda como a
+-- dona e por isso não depende de concessão nenhuma. Aberta, ela não vazava
+-- segredo — preço de pacote está na loja —, mas superfície que ninguém usa é
+-- superfície que ninguém confere.
+revoke all on function public.creditos_por_centavo() from public, anon, authenticated;
 grant execute on function public.meu_afiliado() to authenticated;
